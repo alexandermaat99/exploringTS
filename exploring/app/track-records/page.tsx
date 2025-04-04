@@ -25,7 +25,7 @@ export default async function TrackRecordsPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {tracks.map((track) => (
             <Link
-              href={`/protected/track-records/${track.id}`}
+              href={`/track-records/${track.id}`}
               key={track.id}
               className="block p-6 bg-white rounded-lg shadow hover:shadow-md transition-shadow"
             >

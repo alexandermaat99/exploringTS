@@ -15,6 +15,7 @@ interface LapTimeRecord {
   user_id: string | null;
   car_id: number;
   user_email?: string | null;
+  user_display_name?: string | null; // Added display name field
   Cars: any; // We'll handle the array/object access with conditional logic
 }
 
@@ -92,22 +93,29 @@ export default async function TrackDetailPage({
         return { ...config, times: [] };
       }
 
-      // Fetch user emails for each time record
-      const timesWithUserEmails = await Promise.all(
+      // Fetch user info for each time record
+      const timesWithUserInfo = await Promise.all(
         times.map(async (time) => {
-          let userEmail = time.user_id;
+          let userDisplayName = null;
+          let userEmail = null;
 
           if (time.user_id) {
+            // Get display name
+            const { data: displayNameData } = await supabase.rpc(
+              "get_user_display_name",
+              { user_id: time.user_id }
+            );
+
+            // Get email as fallback
             const { data: emailData } = await supabase.rpc("get_user_email", {
               user_id: time.user_id,
             });
 
-            if (emailData) {
-              userEmail = emailData;
-            }
+            userDisplayName = displayNameData;
+            userEmail = emailData;
           }
 
-          // Return a new object with all properties including user_email
+          // Return a new object with all properties including user info
           return {
             id: time.id,
             lap_record: time.lap_record,
@@ -115,6 +123,7 @@ export default async function TrackDetailPage({
             car_id: time.car_id,
             Cars: time.Cars,
             user_email: userEmail,
+            user_display_name: userDisplayName,
           } as LapTimeRecord;
         })
       );
@@ -122,7 +131,7 @@ export default async function TrackDetailPage({
       return {
         id: config.id,
         config_name: config.config_name,
-        times: timesWithUserEmails,
+        times: timesWithUserInfo,
       };
     })
   );
@@ -176,7 +185,10 @@ export default async function TrackDetailPage({
                             {secondsToTimeString(time.lap_record)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {time.user_email || time.user_id}
+                            {/* Show display name with fallbacks */}
+                            {time.user_display_name ||
+                              time.user_email ||
+                              time.user_id}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {/* Handle Cars being either an array or object */}
