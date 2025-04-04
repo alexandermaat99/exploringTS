@@ -32,10 +32,12 @@ function secondsToTimeString(totalSeconds: number | null): string {
 
   return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${milliseconds.toString().padStart(3, "0")}`;
 }
-type RouteParams = { id: string };
-type PageProps = { params: RouteParams };
 
-export default async function TrackDetailPage({ params }: PageProps) {
+export default async function TrackDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const supabase = await createClient();
   const trackId = parseInt(params.id);
 
