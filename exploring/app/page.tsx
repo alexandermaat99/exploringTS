@@ -27,7 +27,7 @@ export default async function TrackRecordsPage() {
             <Link
               href={`/${track.id}`}
               key={track.id}
-              className="block p-6 bg-white rounded-lg shadow hover:shadow-md transition-shadow"
+              className="block p-6 dark:bg-slate-700 bg-white rounded-lg shadow hover:shadow-md transition-shadow"
             >
               <h2 className="text-2xl px-8 font-semibold text-center">
                 {track.track_name}
