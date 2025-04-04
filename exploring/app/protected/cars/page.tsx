@@ -27,7 +27,7 @@ export default async function CarsPage() {
           {cars.map((car) => (
             <li
               key={car.id}
-              className="p-4 border rounded-md shadow-sm bg-white flex justify-between items-center"
+              className="p-4 border rounded-md shadow-sm dark:bg-slate-700 bg-white flex justify-between items-center"
             >
               <div>
                 <h2 className="text-xl font-semibold">{car.car_name}</h2>

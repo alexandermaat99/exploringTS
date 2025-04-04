@@ -125,7 +125,10 @@ export default async function RecordsPage() {
             </thead>
             <tbody className="bg-white divide-y dark:bg-slate-700 divide-gray-200">
               {records.map((record) => (
-                <tr key={record.id} className="hover:bg-gray-50">
+                <tr
+                  key={record.id}
+                  className="hover:bg-gray-50 dark:bg-slate-900"
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     {record.user_display_name ||
                       record.user_email ||

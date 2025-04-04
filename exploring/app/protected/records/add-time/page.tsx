@@ -31,7 +31,7 @@ export default async function AddTrackTimePage() {
     .order("config_name");
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-md">
+    <div className="max-w-2xl mx-auto p-6 dark:bg-slate-700 bg-white rounded-lg shadow-md">
       <h1 className="text-3xl font-bold mb-6">Add New Track Time</h1>
 
       <form action={addTrackTime} className="space-y-6">
