@@ -16,6 +16,11 @@ export default async function CarsPage() {
   return (
     <div className="flex flex-col gap-8">
       <h1 className="text-3xl font-bold">Cars</h1>
+      <Link href="/protected/cars/add-car">
+        <button className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+          Add New Car
+        </button>
+      </Link>
 
       {cars && cars.length > 0 ? (
         <ul className="space-y-4">
@@ -44,11 +49,6 @@ export default async function CarsPage() {
       ) : (
         <p>No cars found in the database.</p>
       )}
-      <Link href="/protected/cars/add-car">
-        <button className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-          Add New Car
-        </button>
-      </Link>
     </div>
   );
 }

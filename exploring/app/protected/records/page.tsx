@@ -99,52 +99,72 @@ export default async function RecordsPage() {
       </Link>
 
       {records && records.length > 0 ? (
-        <ul className="space-y-4">
-          {records.map((record) => (
-            <li
-              key={record.id}
-              className="p-4 border rounded-md shadow-sm bg-white flex justify-between items-center"
-            >
-              <div>
-                <h2 className="text-xl font-semibold">
-                  Driver:{" "}
-                  {record.user_display_name ||
-                    record.user_email ||
-                    record.user_id}
-                </h2>
-                <h2 className="text-xl font-semibold">
-                  Car: {record.Cars?.car_name}
-                </h2>
-                <h2 className="text-xl font-semibold">
-                  Track: {record["Track Config"]?.Tracks?.track_name}
-                </h2>
-                <h2 className="text-xl font-semibold">
-                  Configuration: {record["Track Config"]?.config_name}
-                </h2>
-                <h2 className="text-xl font-semibold">
-                  Lap Record: {secondsToTimeString(record.lap_record)}
-                </h2>
-              </div>
-
-              {/* Only show Edit/Delete buttons if current user is the record owner */}
-              {user && record.user_id === user.id && (
-                <div className="flex gap-2">
-                  <Link href={`/protected/records/edit-time/${record.id}`}>
-                    <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                      Edit
-                    </button>
-                  </Link>
-
-                  {/* Use the client component for delete button */}
-                  <DeleteButton
-                    recordId={record.id}
-                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                  />
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-x-auto w-full">
+          <table className="min-w-full divide-y divide-gray-200 shadow-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Driver
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Car
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Track
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Configuration
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Lap Record
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {records.map((record) => (
+                <tr key={record.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {record.user_display_name ||
+                      record.user_email ||
+                      record.user_id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {record.Cars?.car_name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {record["Track Config"]?.Tracks?.track_name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {record["Track Config"]?.config_name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {secondsToTimeString(record.lap_record)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    {user && record.user_id === user.id && (
+                      <div className="flex gap-2">
+                        <Link
+                          href={`/protected/records/edit-time/${record.id}`}
+                        >
+                          <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                            Edit
+                          </button>
+                        </Link>
+                        <DeleteButton
+                          recordId={record.id}
+                          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                        />
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <p>No Track Times found in the database.</p>
       )}

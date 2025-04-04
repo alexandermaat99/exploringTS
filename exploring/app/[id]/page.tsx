@@ -57,7 +57,7 @@ export default async function TrackDetailPage({
     .from("Track Config")
     .select("id, config_name")
     .eq("track_id", trackId)
-    .order("config_name");
+    .order("id");
 
   if (configError) {
     console.error("Error fetching configurations:", configError.message);
@@ -138,15 +138,13 @@ export default async function TrackDetailPage({
 
   return (
     <div className="flex flex-col gap-8 p-4">
-      <div className="flex items-center gap-4">
-        <Link
-          href="/protected/track-records"
-          className="text-blue-500 hover:underline"
-        >
-          ← Back to Tracks
-        </Link>
-        <h1 className="text-3xl font-bold">{track.track_name}</h1>
-      </div>
+      <Link href="/">
+        <button className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+          &lt; Back
+        </button>
+      </Link>
+      <h1 className="text-3xl font-bold">{track.track_name}</h1>
+      <div className="flex items-center gap-4"></div>
 
       {configsWithTimes.length > 0 ? (
         <div className="space-y-8">

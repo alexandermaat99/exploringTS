@@ -14,8 +14,8 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Next.js and Supabase Starter Kit",
-  description: "The fastest way to build apps with Next.js and Supabase",
+  title: "Maat Huis Sim Times",
+  description: "Tracking sim times at the maat huis",
 };
 
 const geistSans = Geist({
@@ -38,12 +38,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <main className="min-h-screen flex flex-col items-center">
-            <div className="flex-1 w-full flex flex-col gap-20 items-center">
+            <div className="flex-1 w-full flex flex-col gap-5 items-center">
               <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
                 <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
                   <div className="flex gap-5 items-center font-semibold">
                     {/* <Link href={"/"}>Next.js Supabase Starter</Link> */}
-                    <Link href={"/track-records"}>Track Records</Link>
+                    <Link href={"/"}>Track Records</Link>
                     <Link href={"/protected/records"}>Track Times</Link>
                     <Link href={"/protected/cars"}>Cars</Link>
                     <Link href={"/protected/tracks"}>Tracks</Link>
@@ -51,7 +51,7 @@ export default function RootLayout({
                   {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
                 </div>
               </nav>
-              <div className="flex flex-col gap-20 max-w-5xl p-5">
+              <div className="flex flex-col gap-20 max-w-6xl p-5">
                 {children}
               </div>
 

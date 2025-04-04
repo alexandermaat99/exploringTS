@@ -72,7 +72,7 @@ export default async function EditTrackTimePage({
   const { data: trackConfigs } = await supabase
     .from("Track Config")
     .select("id, config_name, track_id")
-    .order("config_name");
+    .order("id");
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-md">
