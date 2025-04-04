@@ -8,11 +8,7 @@ type Car = { id: number; car_name: string };
 type Track = { id: number; track_name: string };
 type TrackConfig = { id: number; config_name: string; track_id: number };
 
-export default async function EditTrackTimePage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function EditTrackTimePage({ params }: any) {
   const supabase = await createClient();
   const recordId = parseInt(params.id);
 
