@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "supabase": "^2.20.5"
+  },
+  "dependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.1"
+  }
+}
