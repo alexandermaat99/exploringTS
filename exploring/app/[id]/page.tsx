@@ -145,7 +145,10 @@ export default async function TrackDetailPage({ params }: any) {
       {configsWithTimes.length > 0 ? (
         <div className="space-y-8">
           {configsWithTimes.map((config) => (
-            <div key={config.id} className="bg-white rounded-lg shadow p-6">
+            <div
+              key={config.id}
+              className="bg-white dark:bg-slate-700 rounded-lg shadow p-6"
+            >
               <h2 className="text-2xl font-semibold mb-4">
                 {config.config_name}
               </h2>
@@ -155,7 +158,7 @@ export default async function TrackDetailPage({ params }: any) {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium  text-gray-500 uppercase tracking-wider">
                           Position
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
