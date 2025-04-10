@@ -1,34 +1,85 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { cache } from "react";
 import { createClient } from "@/utils/supabase/server";
-import DeleteButton from "@/components/DeleteButton"; // Update with correct path
+import DeleteButton from "@/components/DeleteButton";
 
-type TrackTime = {
+// Updated type definition to match the actual data structure
+interface TrackTime {
   id: number;
   created_at: string;
   lap_record: number | null;
   user_id: string | null;
+  // Handle both array and single object cases
+  Cars: { car_name: string }[] | { car_name: string } | null;
+  "Track Config":
+    | {
+        config_name: string;
+        Tracks: { track_name: string }[] | { track_name: string } | null;
+      }[]
+    | {
+        config_name: string;
+        Tracks: { track_name: string }[] | { track_name: string } | null;
+      }
+    | null;
+  user_display_name?: string | null;
   user_email?: string | null;
-  user_display_name?: string | null; // Add this line
-  Cars: {
-    car_name: string;
-  } | null;
-  "Track Config": {
-    config_name: string;
-    Tracks: {
-      track_name: string;
-    } | null;
-  } | null;
-};
+}
 
-export default async function RecordsPage() {
+// Helper functions for safer property access
+function getCarName(record: TrackTime): string | null {
+  if (!record.Cars) return null;
+  return Array.isArray(record.Cars)
+    ? record.Cars.length > 0
+      ? record.Cars[0].car_name
+      : null
+    : record.Cars.car_name;
+}
+
+function getTrackName(record: TrackTime): string | null {
+  if (!record["Track Config"]) return null;
+  const config = Array.isArray(record["Track Config"])
+    ? record["Track Config"][0]
+    : record["Track Config"];
+  if (!config?.Tracks) return null;
+  return Array.isArray(config.Tracks)
+    ? config.Tracks.length > 0
+      ? config.Tracks[0].track_name
+      : null
+    : config.Tracks.track_name;
+}
+
+function getConfigName(record: TrackTime): string | null {
+  if (!record["Track Config"]) return null;
+  return Array.isArray(record["Track Config"])
+    ? record["Track Config"].length > 0
+      ? record["Track Config"][0].config_name
+      : null
+    : record["Track Config"].config_name;
+}
+
+// Utility function to convert seconds to time string
+function secondsToTimeString(totalSeconds: number | null): string {
+  if (totalSeconds === null) return "00:00:00.000";
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  const milliseconds = Math.round(
+    (totalSeconds - Math.floor(totalSeconds)) * 1000
+  );
+
+  return `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${milliseconds
+    .toString()
+    .padStart(3, "0")}`;
+}
+
+// Cached data fetching for track times
+const getTrackTimes = cache(async () => {
   const supabase = await createClient();
 
-  // Get the current logged-in user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // Fetch track times with joined data
   const { data, error } = await supabase
     .from("Track Times")
     .select(
@@ -52,43 +103,21 @@ export default async function RecordsPage() {
 
   if (error) {
     console.error("Error fetching track times:", error.message);
-    return (
-      <div className="text-red-500">
-        Failed to load track times: {error.message}
-      </div>
-    );
+    throw new Error(`Failed to load track times: ${error.message}`);
   }
 
-  // Cast data to the correct type
-  const records = data as unknown as TrackTime[];
+  return data as unknown as TrackTime[];
+});
 
-  // Fetch user display names using the RPC function
-  if (records && records.length > 0) {
-    const userInfoPromises = records.map(async (record) => {
-      if (record.user_id) {
-        // Get display name
-        const { data: displayNameData, error: displayNameError } =
-          await supabase.rpc("get_user_display_name", {
-            user_id: record.user_id,
-          });
+// Get current user
+const getCurrentUser = cache(async () => {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  return data.user;
+});
 
-        // Get email as fallback
-        const { data: emailData, error: emailError } = await supabase.rpc(
-          "get_user_email",
-          { user_id: record.user_id }
-        );
-
-        // Set display name, with email as fallback, with user_id as final fallback
-        record.user_display_name =
-          displayNameData || emailData || record.user_id;
-      }
-      return record;
-    });
-
-    // Wait for all promises to resolve
-    await Promise.all(userInfoPromises);
-  }
-
+// Main component
+export default async function RecordsPage() {
   return (
     <div className="flex flex-col gap-8 p-4">
       <h1 className="text-3xl font-bold">Track Times</h1>
@@ -98,138 +127,175 @@ export default async function RecordsPage() {
         </button>
       </Link>
 
-      {records && records.length > 0 ? (
-        <div className="overflow-x-auto w-full">
-          <table className="min-w-full divide-y divide-gray-200 shadow-sm">
-            <thead className="bg-gray-50 dark:bg-slate-400">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Driver
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Car
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Track
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Configuration
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Lap Record
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y dark:bg-slate-700 divide-gray-200">
-              {records.map((record) => (
-                <tr
-                  key={record.id}
-                  className="hover:bg-gray-50 dark:bg-slate-900"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {record.user_display_name ||
-                      record.user_email ||
-                      record.user_id}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {record.Cars?.car_name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {record["Track Config"]?.Tracks?.track_name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {record["Track Config"]?.config_name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {secondsToTimeString(record.lap_record)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    {user && record.user_id === user.id && (
-                      <div className="flex gap-2">
-                        <Link
-                          href={`/protected/records/edit-time/${record.id}`}
-                        >
-                          <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                            Edit
-                          </button>
-                        </Link>
-                        <DeleteButton
-                          recordId={record.id}
-                          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                        />
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p>No Track Times found in the database.</p>
-      )}
+      <Suspense fallback={<LoadingTable />}>
+        <RecordsTable />
+      </Suspense>
     </div>
   );
 }
 
-// Server action for deleting a track time
-async function deleteTrackTime(formData: FormData) {
-  "use server";
-
-  const supabase = await createClient();
-
-  // Get current user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    throw new Error("You must be logged in to delete track times");
-  }
-
-  // Extract record ID
-  const recordId = parseInt(formData.get("id") as string);
-
-  // Verify ownership
-  const { data: record } = await supabase
-    .from("Track Times")
-    .select("user_id")
-    .eq("id", recordId)
-    .single();
-
-  if (!record || record.user_id !== user.id) {
-    throw new Error("Unauthorized: You can only delete your own records");
-  }
-
-  // Delete the record
-  const { error } = await supabase
-    .from("Track Times")
-    .delete()
-    .eq("id", recordId);
-
-  if (error) {
-    console.error("Error deleting track time:", error);
-    throw new Error(error.message);
-  }
+// Loading skeleton component
+function LoadingTable() {
+  return (
+    <div className="overflow-x-auto w-full animate-pulse">
+      <table className="min-w-full divide-y divide-gray-200 shadow-sm">
+        <thead className="bg-gray-50 dark:bg-slate-400">
+          <tr>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <th key={i} className="px-6 py-3">
+                <div className="h-4 bg-gray-200 dark:bg-slate-500 rounded w-20"></div>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y dark:bg-slate-700 divide-gray-200">
+          {[1, 2, 3, 4, 5].map((row) => (
+            <tr key={row}>
+              {[1, 2, 3, 4, 5, 6].map((col) => (
+                <td key={col} className="px-6 py-4">
+                  <div className="h-4 bg-gray-200 dark:bg-slate-500 rounded w-24"></div>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
-// Utility function to convert seconds to time string
-function secondsToTimeString(totalSeconds: number | null): string {
-  if (totalSeconds === null) return "00:00:00.000";
+// Component to display the records table
+async function RecordsTable() {
+  // Fetch track times and current user in parallel
+  const [records, currentUser] = await Promise.all([
+    getTrackTimes(),
+    getCurrentUser(),
+  ]);
 
-  // Calculate hours, minutes, seconds
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = Math.floor(totalSeconds % 60);
+  if (!records || records.length === 0) {
+    return <p>No Track Times found in the database.</p>;
+  }
 
-  // Calculate milliseconds (get decimal part)
-  const milliseconds = Math.round(
-    (totalSeconds - Math.floor(totalSeconds)) * 1000
+  // Get a list of all user IDs (filtering out null values and duplicates)
+  const userIds = Array.from(
+    new Set(
+      records
+        .filter((record) => record.user_id !== null)
+        .map((record) => record.user_id!)
+    )
   );
 
-  // Format the time string (HH:MM:SS.ms)
-  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${milliseconds.toString().padStart(3, "0")}`;
+  // Get user information for each record
+  const supabase = await createClient();
+  const enhancedRecords = [...records]; // Create a copy of records to modify
+
+  // Use Promise.all to process all records in parallel
+  await Promise.all(
+    enhancedRecords.map(async (record, index) => {
+      if (!record.user_id) return; // Skip if no user ID
+
+      try {
+        // Get display name (use the direct approach that worked in your original code)
+        const { data: displayName } = await supabase.rpc(
+          "get_user_display_name",
+          { user_id: record.user_id }
+        );
+
+        // Get email as fallback
+        const { data: email } = await supabase.rpc("get_user_email", {
+          user_id: record.user_id,
+        });
+
+        // Update the record directly
+        enhancedRecords[index].user_display_name = displayName;
+        enhancedRecords[index].user_email = email;
+
+        console.log(
+          `User ${record.user_id} has display name: ${displayName} and email: ${email}`
+        );
+      } catch (error) {
+        console.error(`Error fetching user info for ${record.user_id}:`, error);
+      }
+    })
+  );
+
+  return (
+    <div className="overflow-x-auto w-full">
+      <table className="min-w-full divide-y divide-gray-200 shadow-sm">
+        <thead className="bg-gray-50 dark:bg-slate-400">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Driver
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Car
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Track
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Configuration
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Lap Record
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y dark:bg-slate-700 divide-gray-200">
+          {enhancedRecords.map((record) => (
+            <tr
+              key={record.id}
+              className="hover:bg-gray-50 dark:hover:bg-slate-800"
+            >
+              <td className="px-6 py-4 whitespace-nowrap">
+                {record.user_display_name || record.user_email || (
+                  <span className="italic text-gray-400">
+                    {record.user_id
+                      ? `User ${record.user_id.substring(0, 8)}...`
+                      : "Unknown"}
+                  </span>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {getCarName(record) || (
+                  <span className="italic text-gray-400">Unknown</span>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {getTrackName(record) || (
+                  <span className="italic text-gray-400">Unknown</span>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {getConfigName(record) || (
+                  <span className="italic text-gray-400">Unknown</span>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {secondsToTimeString(record.lap_record)}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {currentUser && record.user_id === currentUser.id && (
+                  <div className="flex gap-2">
+                    <Link href={`/protected/records/edit-time/${record.id}`}>
+                      <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Edit
+                      </button>
+                    </Link>
+                    <DeleteButton
+                      recordId={record.id}
+                      className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                    />
+                  </div>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
-// No redirect needed as form submission will refresh the page

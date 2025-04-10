@@ -1,3 +1,4 @@
+// Only import this in server components (files without "use client")
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -24,6 +25,6 @@ export const createClient = async () => {
           }
         },
       },
-    },
+    }
   );
 };

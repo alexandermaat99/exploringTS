@@ -4,6 +4,7 @@
   },
   "dependencies": {
     "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.1"
+    "@types/react-dom": "^19.1.1",
+    "react-error-boundary": "^5.0.0"
   }
 }
