@@ -5,6 +5,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ErrorBoundary } from "react-error-boundary";
 import { getCars, getCarsPaginated, getCarsCount } from "./actions";
+import CustomErrorBoundary from "./CustomErrorBoundary";
 
 // Define interface for car data
 interface Car {
@@ -264,9 +265,9 @@ export default function CarsPage() {
         <CarsSearch initialSearch={currentSearch} onSearch={handleSearch} />
       </div>
 
-      <ErrorBoundary fallback={<ErrorFallback />}>
+      <CustomErrorBoundary fallback={<ErrorFallback />}>
         <CarsList />
-      </ErrorBoundary>
+      </CustomErrorBoundary>
     </div>
   );
 }
