@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useState, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { ErrorBoundary } from "react-error-boundary";
+import { useRouter } from "next/navigation";
 import { getCars, getCarsPaginated, getCarsCount } from "./actions";
 import CustomErrorBoundary from "./CustomErrorBoundary";
 
@@ -95,11 +94,8 @@ function CarsSearch({
   );
 }
 
-// Cars list with pagination
-function CarsList() {
-  const searchParams = useSearchParams();
-  const page = parseInt(searchParams.get("page") || "1", 10);
-  const searchTerm = searchParams.get("search") || "";
+// Cars list with pagination - now with useSearchParams inside
+function CarsList({ page, searchTerm }: { page: number; searchTerm: string }) {
   const pageSize = 10;
 
   const [cars, setCars] = useState<Car[]>([]);
@@ -231,10 +227,13 @@ function CarsList() {
   );
 }
 
-// Main component
-export default function CarsPage() {
+// Component that handles useSearchParams - properly wrapped in Suspense
+function SearchParamsContent() {
   const router = useRouter();
+  // Import useSearchParams here to isolate it in a component wrapped with Suspense
+  const { useSearchParams } = require("next/navigation");
   const searchParams = useSearchParams();
+  const page = parseInt(searchParams.get("page") || "1", 10);
   const currentSearch = searchParams.get("search") || "";
 
   const handleSearch = (term: string) => {
@@ -249,9 +248,7 @@ export default function CarsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-8 p-4">
-      <h1 className="text-3xl font-bold">Cars</h1>
-
+    <>
       <div className="flex flex-col sm:flex-row sm:justify-between gap-4 items-start">
         <Link href="/protected/cars/add-car" aria-label="Add new car">
           <button
@@ -266,8 +263,22 @@ export default function CarsPage() {
       </div>
 
       <CustomErrorBoundary fallback={<ErrorFallback />}>
-        <CarsList />
+        <CarsList page={page} searchTerm={currentSearch} />
       </CustomErrorBoundary>
+    </>
+  );
+}
+
+// Main component
+export default function CarsPage() {
+  return (
+    <div className="flex flex-col gap-8 p-4">
+      <h1 className="text-3xl font-bold">Cars</h1>
+
+      {/* Wrap the component that uses useSearchParams in Suspense */}
+      <Suspense fallback={<div>Loading search parameters...</div>}>
+        <SearchParamsContent />
+      </Suspense>
     </div>
   );
 }
