@@ -1,3 +1,6 @@
+// components/CustomErrorBoundary.tsx
+"use client";
+
 import React, { Component, ReactNode, ErrorInfo } from "react";
 
 interface ErrorBoundaryProps {
