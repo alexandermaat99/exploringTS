@@ -8,9 +8,14 @@ type Car = { id: number; car_name: string };
 type Track = { id: number; track_name: string };
 type TrackConfig = { id: number; config_name: string; track_id: number };
 
-export default async function EditTrackTimePage({ params }: any) {
+interface PageProps {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+export default async function EditTrackTimePage({ params }: PageProps) {
   const supabase = await createClient();
-  const recordId = parseInt(params.id);
+  const recordId = parseInt(await params.then((p) => p.id));
 
   // Get the current user
   const {

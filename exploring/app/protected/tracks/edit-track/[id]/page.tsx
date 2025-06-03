@@ -16,8 +16,8 @@ interface ConfigToInsert {
 
 export default function EditTrackPage() {
   const router = useRouter();
-  const { id: idParam } = useParams();
-  const id = typeof idParam === "string" ? parseInt(idParam) : 0;
+  const params = useParams();
+  const id = typeof params.id === "string" ? parseInt(params.id) : 0;
   const [trackName, setTrackName] = useState("");
   const [configurations, setConfigurations] = useState([{ id: "", name: "" }]);
   const [error, setError] = useState("");

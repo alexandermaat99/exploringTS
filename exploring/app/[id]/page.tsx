@@ -27,6 +27,21 @@ interface LapTimeRecord {
   car_name?: string;
 }
 
+interface LapTime {
+  id: number;
+  lap_record: number;
+  user_id: string;
+  car_id: number;
+  config_id: number;
+  Cars: { car_name: string }[] | { car_name: string };
+}
+
+interface FastestTimesByUser {
+  [userId: string]: {
+    [configId: number]: LapTime;
+  };
+}
+
 // Utility function to format lap time
 function secondsToTimeString(totalSeconds: number | null): string {
   if (totalSeconds === null) return "00:00.000";
@@ -104,7 +119,7 @@ const getConfigsWithLapTimes = cache(async (trackId: number) => {
   }
 
   // Process each time record to get user info and keep only the fastest time per user per config
-  const fastestTimesByUser: Record<string, Record<number, any>> = {};
+  const fastestTimesByUser: FastestTimesByUser = {};
 
   // First pass: Find fastest time for each user in each config
   allTimes.forEach((time) => {
@@ -200,13 +215,14 @@ const getConfigsWithLapTimes = cache(async (trackId: number) => {
   }));
 });
 
-// Main component with better loading states and structure - FIXED WITH OPTION 1
-export default async function TrackDetailPage({
-  params,
-}: {
-  params: any; // Use 'any' temporarily to bypass type checking
-}) {
-  const trackId = parseInt(params.id);
+interface PageProps {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+export default async function TrackDetailPage({ params }: PageProps) {
+  const { id } = await params;
+  const trackId = parseInt(id);
   const track = await getTrackDetails(trackId);
 
   if (!track) {

@@ -6,7 +6,8 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 export default function EditCarPage() {
   const router = useRouter();
-  const { id } = useParams();
+  const params = useParams();
+  const id = params.id as string;
   const [carName, setCarName] = useState("");
   const [carType, setCarType] = useState("");
   const [carSeries, setCarSeries] = useState("");

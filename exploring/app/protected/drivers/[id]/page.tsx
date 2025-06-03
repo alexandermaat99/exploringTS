@@ -56,14 +56,48 @@ async function getUserStats(userId: string): Promise<UserStats> {
     .eq("user_id", userId)
     .order("lap_record", { ascending: true });
 
-  // Get favorite car using a count of car usage
+  // Get favorite car by counting car usage
   const { data: carUsage } = await supabase
-    .from("auth_users")
-    .select("id, email");
+    .from("track_times")
+    .select("cars!car_id(car_name)")
+    .eq("user_id", userId);
+
+  // Count car usage
+  const carCounts = new Map<string, number>();
+  carUsage?.forEach((record) => {
+    const carName = record.cars.car_name;
+    carCounts.set(carName, (carCounts.get(carName) || 0) + 1);
+  });
+
+  // Find the most used car
+  let favoriteCar: { carName: string; useCount: number } | undefined;
+  if (carCounts.size > 0) {
+    let maxUseCount = 0;
+    let mostUsedCar = "";
+    carCounts.forEach((count, car) => {
+      if (count > maxUseCount) {
+        maxUseCount = count;
+        mostUsedCar = car;
+      }
+    });
+    favoriteCar = {
+      carName: mostUsedCar,
+      useCount: maxUseCount,
+    };
+  }
 
   // Process best times to get unique track/config combinations
-  const uniqueBestTimes = new Map();
-  (bestTimes as TrackTime[] | null)?.forEach((time) => {
+  const uniqueBestTimes = new Map<
+    string,
+    {
+      trackName: string;
+      configName: string;
+      lapTime: number;
+      carName: string;
+    }
+  >();
+
+  bestTimes?.forEach((time: TrackTime) => {
     const trackConfig = time.track_configs;
     const key = `${trackConfig.tracks.track_name}-${trackConfig.config_name}`;
     if (!uniqueBestTimes.has(key)) {
@@ -79,12 +113,7 @@ async function getUserStats(userId: string): Promise<UserStats> {
   return {
     totalRecords: totalRecords || 0,
     bestTimes: Array.from(uniqueBestTimes.values()),
-    favoriteCar: carUsage?.[0]
-      ? {
-          carName: carUsage[0].car_name,
-          useCount: carUsage[0].count,
-        }
-      : undefined,
+    favoriteCar,
   };
 }
 
