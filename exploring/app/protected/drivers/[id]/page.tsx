@@ -76,12 +76,13 @@ async function getUserStats(userId: string): Promise<UserStats> {
 }
 
 interface PageProps {
-  params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export default async function DriverProfilePage({ params }: PageProps) {
   const supabase = await createClient();
+  const { id } = await params;
 
   // Get current user to verify they're in the same league
   const {
@@ -102,14 +103,14 @@ export default async function DriverProfilePage({ params }: PageProps) {
   const { data: driverProfile } = await supabase
     .from("user_profiles")
     .select("*, leagues!league_id(*)")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   // Get driver's email
   const { data: driverAuth } = await supabase
     .from("auth_users")
     .select("email")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   // If driver not found or not in same league, return 404
@@ -121,7 +122,7 @@ export default async function DriverProfilePage({ params }: PageProps) {
   }
 
   // Get driver stats
-  const stats = await getUserStats(params.id);
+  const stats = await getUserStats(id);
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-8">
