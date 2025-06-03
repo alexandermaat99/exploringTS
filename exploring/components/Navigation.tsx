@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "./ui/button";
@@ -9,46 +9,63 @@ import { hasEnvVars } from "@/utils/supabase/check-env-vars";
 import { EnvVarWarning } from "./env-var-warning";
 import { createBrowserClient } from "@supabase/ssr";
 
-export default function Navigation() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [userProfile, setUserProfile] = useState<any>(null);
+interface UserProfile {
+  display_name: string | null;
+  leagues: { name: string } | null;
+}
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+interface User {
+  id: string;
+  email?: string;
+}
+
+// Cache for profile data to avoid repeated API calls
+const profileCache = new Map<string, UserProfile>();
+
+const Navigation = memo(() => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      ),
+    []
   );
+
+  const fetchProfile = useCallback(async (userId: string) => {
+    // Check cache first
+    if (profileCache.has(userId)) {
+      setUserProfile(profileCache.get(userId)!);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/profile/${userId}`);
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        console.error("Profile API error:", result.error);
+        const fallbackProfile = { display_name: null, leagues: null };
+        setUserProfile(fallbackProfile);
+        profileCache.set(userId, fallbackProfile);
+      } else {
+        setUserProfile(result.profile);
+        profileCache.set(userId, result.profile);
+      }
+    } catch (error) {
+      console.error("Profile fetch error:", error);
+      const fallbackProfile = { display_name: null, leagues: null };
+      setUserProfile(fallbackProfile);
+      profileCache.set(userId, fallbackProfile);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
-
-    const fetchProfile = async (userId: string) => {
-      try {
-        console.log(`Navigation - Fetching profile for user:`, userId);
-
-        // Use API route instead of direct database query
-        const response = await fetch(`/api/profile/${userId}`);
-        const result = await response.json();
-
-        console.log("Navigation - Profile result:", result);
-
-        if (!response.ok || result.error) {
-          console.error("Profile API error:", result.error);
-          if (mounted) {
-            setUserProfile({ display_name: null });
-          }
-        } else {
-          if (mounted) {
-            setUserProfile(result.profile);
-          }
-        }
-      } catch (error) {
-        console.error("Profile fetch error:", error);
-        if (mounted) {
-          setUserProfile({ display_name: null });
-        }
-      }
-    };
 
     const getUser = async () => {
       try {
@@ -89,43 +106,32 @@ export default function Navigation() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase, fetchProfile]);
 
-  const toggleMenu = () => {
+  const toggleMenu = useCallback(() => {
     setIsOpen(!isOpen);
-  };
+  }, [isOpen]);
 
-  // Create nav items with dynamic username for profile
-  const getNavItems = () => {
+  // Memoize nav items to prevent unnecessary recalculations
+  const navItems = useMemo(() => {
     const baseItems = [
       { href: "/protected/records", label: "Track Times" },
       { href: "/protected/cars", label: "Cars" },
       { href: "/protected/tracks", label: "Tracks" },
     ];
 
-    // Add league with dynamic name
     if (user) {
       const leagueName = userProfile?.leagues?.name || "League";
       baseItems.push({ href: "/protected/league", label: leagueName });
 
-      // Debug logging
-      console.log("Navigation - user:", user?.email);
-      console.log("Navigation - userProfile:", userProfile);
-      console.log("Navigation - display_name:", userProfile?.display_name);
-      console.log("Navigation - leagues:", userProfile?.leagues);
-      console.log("Navigation - league_name:", userProfile?.leagues?.name);
-
       const username =
         userProfile?.display_name || user.email?.split("@")[0] || "Profile";
-      console.log("Navigation - final username:", username);
 
       baseItems.push({ href: "/protected/profile", label: username });
     }
 
     return baseItems;
-  };
-
-  const navItems = getNavItems();
+  }, [user, userProfile]);
 
   return (
     <nav className="bg-white dark:bg-slate-800 shadow-sm">
@@ -229,4 +235,8 @@ export default function Navigation() {
       </div>
     </nav>
   );
-}
+});
+
+Navigation.displayName = "Navigation";
+
+export default Navigation;

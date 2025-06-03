@@ -72,11 +72,55 @@ function secondsToTimeString(totalSeconds: number | null): string {
     .padStart(2, "0")}.${milliseconds.toString().padStart(3, "0")}`;
 }
 
-// Cached data fetching for track times
+// Helper functions remain the same...
+function extractCarName(cars: any): string {
+  if (!cars) return "Unknown Car";
+  if (Array.isArray(cars)) {
+    return cars.length > 0 ? cars[0].car_name || "Unknown Car" : "Unknown Car";
+  }
+  return cars.car_name || "Unknown Car";
+}
+
+function extractTrackInfo(trackConfigs: any): {
+  configName: string;
+  trackName: string;
+} {
+  if (!trackConfigs) {
+    return { configName: "Unknown Config", trackName: "Unknown Track" };
+  }
+
+  let config = Array.isArray(trackConfigs) ? trackConfigs[0] : trackConfigs;
+  if (!config) {
+    return { configName: "Unknown Config", trackName: "Unknown Track" };
+  }
+
+  const configName = config.config_name || "Unknown Config";
+  const tracks = config.tracks;
+
+  let trackName = "Unknown Track";
+  if (tracks) {
+    if (Array.isArray(tracks)) {
+      trackName = tracks.length > 0 ? tracks[0].track_name : "Unknown Track";
+    } else {
+      trackName = tracks.track_name || "Unknown Track";
+    }
+  }
+
+  return { configName, trackName };
+}
+
+function formatLapTime(lapTime: number | null): string {
+  if (lapTime === null) return "--";
+  const minutes = Math.floor(lapTime / 60);
+  const seconds = (lapTime % 60).toFixed(3);
+  return `${minutes}:${seconds.padStart(6, "0")}`;
+}
+
+// OPTIMIZED: Single batched query instead of N+1 individual queries
 const getTrackTimes = cache(async () => {
   const supabase = await createClient();
 
-  // First get all track times with related data
+  // Get all track times with related data in a single query
   const { data: trackTimes, error } = await supabase
     .from("track_times")
     .select(
@@ -103,40 +147,63 @@ const getTrackTimes = cache(async () => {
     throw new Error(`Failed to load track times: ${error.message}`);
   }
 
-  // Get user display names for all unique user IDs
-  const userIds = Array.from(new Set(trackTimes.map((time) => time.user_id)));
-  const userDisplayNames = new Map<string, string>();
-
-  await Promise.all(
-    userIds.map(async (userId) => {
-      if (!userId) return;
-
-      const { data: displayName } = await supabase.rpc(
-        "get_user_display_name",
-        {
-          user_id: userId,
-        }
-      );
-
-      if (!displayName) {
-        const { data: email } = await supabase.rpc("get_user_email", {
-          user_id: userId,
-        });
-        userDisplayNames.set(
-          userId,
-          email || `User ${userId.substring(0, 8)}...`
-        );
-      } else {
-        userDisplayNames.set(userId, displayName);
-      }
-    })
+  // OPTIMIZED: Batch query for all user profiles in one request
+  const uniqueUserIds = Array.from(
+    new Set(trackTimes.map((time) => time.user_id).filter(Boolean))
   );
 
-  // Add display names to track times
-  const trackTimesWithUsers = trackTimes.map((time) => ({
-    ...time,
-    user_display_name: time.user_id ? userDisplayNames.get(time.user_id) : null,
-  }));
+  if (uniqueUserIds.length === 0) {
+    return trackTimes as unknown as track_times[];
+  }
+
+  // Single query to get all user profiles
+  const { data: userProfiles } = await supabase
+    .from("user_profiles")
+    .select("id, display_name")
+    .in("id", uniqueUserIds);
+
+  // Create a map for O(1) lookups
+  const userProfileMap = new Map(
+    userProfiles?.map((profile) => [profile.id, profile.display_name]) || []
+  );
+
+  // OPTIMIZED: Batch query for user emails as fallback
+  const missingProfileUserIds = uniqueUserIds.filter(
+    (id) => !userProfileMap.has(id)
+  );
+  let userEmailMap = new Map<string, string>();
+
+  if (missingProfileUserIds.length > 0) {
+    const { data: userEmails } = await supabase.rpc("get_user_emails_batch", {
+      user_ids: missingProfileUserIds,
+    });
+
+    if (userEmails) {
+      userEmailMap = new Map(
+        userEmails.map((item: { user_id: string; email: string }) => [
+          item.user_id,
+          item.email,
+        ])
+      );
+    }
+  }
+
+  // Add display names to track times using the maps
+  const trackTimesWithUsers = trackTimes.map((time) => {
+    let displayName = null;
+
+    if (time.user_id) {
+      displayName =
+        userProfileMap.get(time.user_id) ||
+        userEmailMap.get(time.user_id) ||
+        `User ${time.user_id.substring(0, 8)}...`;
+    }
+
+    return {
+      ...time,
+      user_display_name: displayName,
+    };
+  });
 
   return trackTimesWithUsers as unknown as track_times[];
 });

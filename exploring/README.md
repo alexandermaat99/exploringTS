@@ -17,20 +17,49 @@
 </p>
 <br/>
 
+# Track Records App
+
+## Performance Optimization
+
+To improve app performance, run this SQL function in your Supabase SQL editor:
+
+```sql
+-- Function to get multiple user emails in a single query (fixes N+1 problem)
+CREATE OR REPLACE FUNCTION get_user_emails_batch(user_ids UUID[])
+RETURNS TABLE(user_id UUID, email TEXT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    au.id as user_id,
+    au.email::TEXT as email
+  FROM auth.users au
+  WHERE au.id = ANY(user_ids);
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION get_user_emails_batch(UUID[]) TO authenticated;
+```
+
+This function enables batch user queries instead of individual lookups, dramatically improving page load times.
+
 ## Features
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Middleware
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+- Track record management
+- User profiles and leagues
+- Car and track management
+- Real-time username updates
+- Copy league codes to clipboard
+
+## Installation
+
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Set up Supabase environment variables
+4. Run development server: `npm run dev`
 
 ## Demo
 
