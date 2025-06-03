@@ -3,6 +3,29 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 
+interface Track {
+  id: number;
+  track_name: string;
+}
+
+interface TrackConfig {
+  config_name: string;
+  tracks: Track | Track[];
+}
+
+interface Car {
+  car_name: string;
+}
+
+interface TrackTimeRecord {
+  id: number;
+  lap_record: number;
+  created_at: string;
+  user_id: string;
+  cars: Car | Car[];
+  track_configs: TrackConfig | TrackConfig[];
+}
+
 function secondsToTimeString(totalSeconds: number | null): string {
   if (totalSeconds === null) return "00:00.000";
 
@@ -54,32 +77,35 @@ export default async function RecordDetailPage({
     return notFound();
   }
 
+  // Cast to proper type
+  const typedRecord = record as TrackTimeRecord;
+
   // Get user info
   const { data: userDisplayName } = await supabase.rpc(
     "get_user_display_name",
     {
-      user_id: record.user_id,
+      user_id: typedRecord.user_id,
     }
   );
 
   const { data: userEmail } = await supabase.rpc("get_user_email", {
-    user_id: record.user_id,
+    user_id: typedRecord.user_id,
   });
 
   // Get track ID for back navigation with proper fallback handling
-  const trackConfig = Array.isArray(record.track_configs)
-    ? record.track_configs[0]
-    : record.track_configs;
+  const trackConfig = Array.isArray(typedRecord.track_configs)
+    ? typedRecord.track_configs[0]
+    : typedRecord.track_configs;
   const tracks = trackConfig?.tracks;
   const trackId = Array.isArray(tracks) ? tracks[0]?.id : tracks?.id;
 
   // Helper function to safely get car name
   const getCarName = () => {
-    if (!record.cars) return null;
-    if (Array.isArray(record.cars)) {
-      return record.cars.length > 0 ? record.cars[0].car_name : null;
+    if (!typedRecord.cars) return null;
+    if (Array.isArray(typedRecord.cars)) {
+      return typedRecord.cars.length > 0 ? typedRecord.cars[0].car_name : null;
     }
-    return record.cars.car_name;
+    return typedRecord.cars.car_name;
   };
 
   // Helper function to safely get track name
@@ -119,7 +145,7 @@ export default async function RecordDetailPage({
           <div>
             <h2 className="text-lg font-semibold mb-1">Lap Time</h2>
             <p className="text-3xl font-mono">
-              {secondsToTimeString(record.lap_record)}
+              {secondsToTimeString(typedRecord.lap_record)}
             </p>
           </div>
 
@@ -128,8 +154,8 @@ export default async function RecordDetailPage({
             <p>
               {userDisplayName || userEmail || (
                 <span className="italic text-gray-500">
-                  {record.user_id
-                    ? `User ${record.user_id.substring(0, 8)}...`
+                  {typedRecord.user_id
+                    ? `User ${typedRecord.user_id.substring(0, 8)}...`
                     : "Unknown"}
                 </span>
               )}
@@ -148,7 +174,7 @@ export default async function RecordDetailPage({
           <div>
             <h2 className="text-lg font-semibold mb-1">Date Set</h2>
             <p>
-              {new Date(record.created_at).toLocaleDateString(undefined, {
+              {new Date(typedRecord.created_at).toLocaleDateString(undefined, {
                 year: "numeric",
                 month: "long",
                 day: "numeric",
