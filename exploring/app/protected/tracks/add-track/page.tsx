@@ -39,7 +39,7 @@ export default function AddTrackPage() {
     try {
       // Insert the track into the Tracks table
       const { data: trackData, error: trackError } = await supabase
-        .from("Tracks")
+        .from("tracks")
         .insert([{ track_name: trackName }])
         .select();
 
@@ -63,7 +63,7 @@ export default function AddTrackPage() {
 
       // Insert configurations into Track Config table
       const { error: configError } = await supabase
-        .from("Track Config")
+        .from("track_configs")
         .insert(configurationsToInsert);
 
       if (configError) {

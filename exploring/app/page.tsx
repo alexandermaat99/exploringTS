@@ -6,7 +6,7 @@ export default async function TrackRecordsPage() {
 
   // Fetch all tracks
   const { data: tracks, error } = await supabase
-    .from("Tracks")
+    .from("tracks")
     .select("id, track_name")
     .order("track_name");
 

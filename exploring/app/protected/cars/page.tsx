@@ -7,7 +7,7 @@ import { getCars, getCarsPaginated, getCarsCount } from "./actions";
 import CustomErrorBoundary from "./CustomErrorBoundary";
 
 // Define interface for car data
-interface Car {
+interface cars {
   id: number;
   car_name: string;
   car_type: string;
@@ -98,7 +98,7 @@ function CarsSearch({
 function CarsList({ page, searchTerm }: { page: number; searchTerm: string }) {
   const pageSize = 10;
 
-  const [cars, setCars] = useState<Car[]>([]);
+  const [cars, setCars] = useState<cars[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -151,7 +151,7 @@ function CarsList({ page, searchTerm }: { page: number; searchTerm: string }) {
   return (
     <>
       <ul className="space-y-4">
-        {cars.map((car: Car) => (
+        {cars.map((car: cars) => (
           <li
             key={car.id}
             className="p-4 border rounded-md shadow-sm dark:bg-slate-700 bg-white flex justify-between items-center hover:shadow-md transition-shadow"

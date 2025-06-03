@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 // Server action to get all cars (with optional search)
 export async function getCars(searchTerm = "") {
   const supabase = await createClient();
-  let query = supabase.from("Cars").select("*");
+  let query = supabase.from("cars").select("*");
 
   if (searchTerm) {
     query = query.ilike("car_name", `%${searchTerm}%`);
@@ -24,7 +24,7 @@ export async function getCarsPaginated(
   searchTerm = ""
 ) {
   const supabase = await createClient();
-  let query = supabase.from("Cars").select("*");
+  let query = supabase.from("cars").select("*");
 
   if (searchTerm) {
     query = query.ilike("car_name", `%${searchTerm}%`);
@@ -41,7 +41,7 @@ export async function getCarsPaginated(
 // Server action to get car count (for pagination)
 export async function getCarsCount(searchTerm = "") {
   const supabase = await createClient();
-  let query = supabase.from("Cars").select("*", { count: "exact", head: true });
+  let query = supabase.from("cars").select("*", { count: "exact", head: true });
 
   if (searchTerm) {
     query = query.ilike("car_name", `%${searchTerm}%`);

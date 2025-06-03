@@ -5,12 +5,12 @@ import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 
 // Define proper interfaces for type safety
-interface Track {
+interface tracks {
   id: number;
   track_name: string;
 }
 
-interface TrackConfig {
+interface track_configs {
   id: number;
   config_name: string;
   times: LapTimeRecord[];
@@ -28,27 +28,24 @@ interface LapTimeRecord {
 
 // Utility function to format lap time
 function secondsToTimeString(totalSeconds: number | null): string {
-  if (totalSeconds === null) return "00:00:00.000";
+  if (totalSeconds === null) return "00:00.000";
 
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const minutes = Math.floor(totalSeconds / 60);
   const seconds = Math.floor(totalSeconds % 60);
   const milliseconds = Math.round(
     (totalSeconds - Math.floor(totalSeconds)) * 1000
   );
 
-  return `${hours.toString().padStart(2, "0")}:${minutes
+  return `${minutes.toString().padStart(2, "0")}:${seconds
     .toString()
-    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${milliseconds
-    .toString()
-    .padStart(3, "0")}`;
+    .padStart(2, "0")}.${milliseconds.toString().padStart(3, "0")}`;
 }
 
 // Cached data fetching functions
 const getTrackDetails = cache(async (trackId: number) => {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("Tracks")
+    .from("tracks")
     .select("id, track_name")
     .eq("id", trackId)
     .single();
@@ -57,7 +54,7 @@ const getTrackDetails = cache(async (trackId: number) => {
     return null;
   }
 
-  return data as Track;
+  return data as tracks;
 });
 
 const getConfigsWithLapTimes = cache(async (trackId: number) => {
@@ -65,7 +62,7 @@ const getConfigsWithLapTimes = cache(async (trackId: number) => {
 
   // Fetch configurations for this track
   const { data: configs, error: configError } = await supabase
-    .from("Track Config")
+    .from("track_configs")
     .select("id, config_name")
     .eq("track_id", trackId)
     .order("id");
@@ -75,9 +72,9 @@ const getConfigsWithLapTimes = cache(async (trackId: number) => {
     return [];
   }
 
-  // Fetch ALL lap times for ALL configs in a SINGLE query
+  // Fetch the fastest lap time for each user in each configuration
   const { data: allTimes, error: timesError } = await supabase
-    .from("Track Times")
+    .from("track_times")
     .select(
       `
       id,
@@ -99,53 +96,78 @@ const getConfigsWithLapTimes = cache(async (trackId: number) => {
     return [];
   }
 
-  // Process each time record to get user info
+  // Process each time record to get user info and keep only the fastest time per user per config
+  const fastestTimesByUser: Record<string, Record<number, any>> = {};
+
+  // First pass: Find fastest time for each user in each config
+  allTimes.forEach((time) => {
+    if (!time.user_id || !time.config_id) return;
+
+    const key = `${time.user_id}`;
+    if (!fastestTimesByUser[key]) {
+      fastestTimesByUser[key] = {};
+    }
+
+    if (
+      !fastestTimesByUser[key][time.config_id] ||
+      time.lap_record < fastestTimesByUser[key][time.config_id].lap_record
+    ) {
+      fastestTimesByUser[key][time.config_id] = time;
+    }
+  });
+
+  // Get user info for fastest times
   const processedTimes = await Promise.all(
-    allTimes.map(async (time) => {
-      let userDisplayName = null;
-      let userEmail = null;
+    Object.values(fastestTimesByUser).flatMap((configTimes) =>
+      Object.values(configTimes).map(async (time) => {
+        let userDisplayName = null;
+        let userEmail = null;
 
-      if (time.user_id) {
-        try {
-          // Try to get display name
-          const { data: displayNameData } = await supabase.rpc(
-            "get_user_display_name",
-            { user_id: time.user_id }
-          );
+        if (time.user_id) {
+          try {
+            // Try to get display name
+            const { data: displayNameData } = await supabase.rpc(
+              "get_user_display_name",
+              { user_id: time.user_id }
+            );
 
-          // Try to get email as fallback
-          const { data: emailData } = await supabase.rpc("get_user_email", {
-            user_id: time.user_id,
-          });
+            // Try to get email as fallback
+            const { data: emailData } = await supabase.rpc("get_user_email", {
+              user_id: time.user_id,
+            });
 
-          userDisplayName = displayNameData;
-          userEmail = emailData;
+            userDisplayName = displayNameData;
+            userEmail = emailData;
 
-          console.log(
-            `User ${time.user_id} has display name: ${userDisplayName}, email: ${userEmail}`
-          );
-        } catch (error) {
-          console.error(`Error fetching user info for ${time.user_id}:`, error);
+            console.log(
+              `User ${time.user_id} has display name: ${userDisplayName}, email: ${userEmail}`
+            );
+          } catch (error) {
+            console.error(
+              `Error fetching user info for ${time.user_id}:`,
+              error
+            );
+          }
         }
-      }
 
-      return {
-        id: time.id,
-        lap_record: time.lap_record,
-        user_id: time.user_id,
-        car_id: time.car_id,
-        config_id: time.config_id,
-        car_name: time.Cars
-          ? Array.isArray(time.Cars)
-            ? time.Cars.length > 0
-              ? time.Cars[0].car_name
-              : undefined
-            : (time.Cars as any).car_name
-          : undefined,
-        user_display_name: userDisplayName,
-        user_email: userEmail,
-      };
-    })
+        return {
+          id: time.id,
+          lap_record: time.lap_record,
+          user_id: time.user_id,
+          car_id: time.car_id,
+          config_id: time.config_id,
+          car_name: time.Cars
+            ? Array.isArray(time.Cars)
+              ? time.Cars.length > 0
+                ? time.Cars[0].car_name
+                : undefined
+              : (time.Cars as any).car_name
+            : undefined,
+          user_display_name: userDisplayName,
+          user_email: userEmail,
+        };
+      })
+    )
   );
 
   // Organize times by config_id

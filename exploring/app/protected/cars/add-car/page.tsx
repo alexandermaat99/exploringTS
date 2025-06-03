@@ -19,7 +19,7 @@ export default function AddCarPage() {
     }
 
     try {
-      const { error: insertError } = await supabase.from("Cars").insert([
+      const { error: insertError } = await supabase.from("cars").insert([
         {
           car_name: carName,
           car_type: carType,

@@ -6,7 +6,7 @@ export default async function TracksPage() {
 
   // Fetch all tracks from the tracks table
   const { data: tracks, error } = await supabase
-    .from("Tracks")
+    .from("tracks")
     .select("*")
     .order("track_name", { ascending: true });
   if (error) {

@@ -5,21 +5,21 @@ import { createClient } from "@/utils/supabase/server";
 import DeleteButton from "@/components/DeleteButton";
 
 // Updated type definition to match the actual data structure
-interface TrackTime {
+interface track_times {
   id: number;
   created_at: string;
   lap_record: number | null;
   user_id: string | null;
   // Handle both array and single object cases
-  Cars: { car_name: string }[] | { car_name: string } | null;
-  "Track Config":
+  cars: { car_name: string }[] | { car_name: string } | null;
+  track_configs:
     | {
         config_name: string;
-        Tracks: { track_name: string }[] | { track_name: string } | null;
+        tracks: { track_name: string }[] | { track_name: string } | null;
       }[]
     | {
         config_name: string;
-        Tracks: { track_name: string }[] | { track_name: string } | null;
+        tracks: { track_name: string }[] | { track_name: string } | null;
       }
     | null;
   user_display_name?: string | null;
@@ -27,53 +27,50 @@ interface TrackTime {
 }
 
 // Helper functions for safer property access
-function getCarName(record: TrackTime): string | null {
-  if (!record.Cars) return null;
-  return Array.isArray(record.Cars)
-    ? record.Cars.length > 0
-      ? record.Cars[0].car_name
+function getCarName(record: track_times): string | null {
+  if (!record.cars) return null;
+  return Array.isArray(record.cars)
+    ? record.cars.length > 0
+      ? record.cars[0].car_name
       : null
-    : record.Cars.car_name;
+    : record.cars.car_name;
 }
 
-function getTrackName(record: TrackTime): string | null {
-  if (!record["Track Config"]) return null;
-  const config = Array.isArray(record["Track Config"])
-    ? record["Track Config"][0]
-    : record["Track Config"];
-  if (!config?.Tracks) return null;
-  return Array.isArray(config.Tracks)
-    ? config.Tracks.length > 0
-      ? config.Tracks[0].track_name
+function getTrackName(record: track_times): string | null {
+  if (!record["track_configs"]) return null;
+  const config = Array.isArray(record["track_configs"])
+    ? record["track_configs"][0]
+    : record["track_configs"];
+  if (!config?.tracks) return null;
+  return Array.isArray(config.tracks)
+    ? config.tracks.length > 0
+      ? config.tracks[0].track_name
       : null
-    : config.Tracks.track_name;
+    : config.tracks.track_name;
 }
 
-function getConfigName(record: TrackTime): string | null {
-  if (!record["Track Config"]) return null;
-  return Array.isArray(record["Track Config"])
-    ? record["Track Config"].length > 0
-      ? record["Track Config"][0].config_name
+function getConfigName(record: track_times): string | null {
+  if (!record["track_configs"]) return null;
+  return Array.isArray(record["track_configs"])
+    ? record["track_configs"].length > 0
+      ? record["track_configs"][0].config_name
       : null
-    : record["Track Config"].config_name;
+    : record["track_configs"].config_name;
 }
 
-// Utility function to convert seconds to time string
+// Utility function to format lap time
 function secondsToTimeString(totalSeconds: number | null): string {
-  if (totalSeconds === null) return "00:00:00.000";
+  if (totalSeconds === null) return "00:00.000";
 
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const minutes = Math.floor(totalSeconds / 60);
   const seconds = Math.floor(totalSeconds % 60);
   const milliseconds = Math.round(
     (totalSeconds - Math.floor(totalSeconds)) * 1000
   );
 
-  return `${hours.toString().padStart(2, "0")}:${minutes
+  return `${minutes.toString().padStart(2, "0")}:${seconds
     .toString()
-    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${milliseconds
-    .toString()
-    .padStart(3, "0")}`;
+    .padStart(2, "0")}.${milliseconds.toString().padStart(3, "0")}`;
 }
 
 // Cached data fetching for track times
@@ -81,19 +78,19 @@ const getTrackTimes = cache(async () => {
   const supabase = await createClient();
 
   const { data, error } = await supabase
-    .from("Track Times")
+    .from("track_times")
     .select(
       `
       id,
       created_at,
       lap_record,
       user_id,
-      Cars!car_id (
+      cars!car_id (
         car_name
       ),
-      "Track Config"!config_id (
+      "track_configs"!config_id (
         config_name,
-        Tracks!track_id (
+        tracks!track_id (
           track_name
         )
       )
@@ -106,7 +103,7 @@ const getTrackTimes = cache(async () => {
     throw new Error(`Failed to load track times: ${error.message}`);
   }
 
-  return data as unknown as TrackTime[];
+  return data as unknown as track_times[];
 });
 
 // Get current user

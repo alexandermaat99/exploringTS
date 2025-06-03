@@ -4,9 +4,20 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
+interface ConfigToUpdate {
+  id: number;
+  config_name: string;
+}
+
+interface ConfigToInsert {
+  track_id: number;
+  config_name: string;
+}
+
 export default function EditTrackPage() {
   const router = useRouter();
-  const { id } = useParams();
+  const { id: idParam } = useParams();
+  const id = typeof idParam === "string" ? parseInt(idParam) : 0;
   const [trackName, setTrackName] = useState("");
   const [configurations, setConfigurations] = useState([{ id: "", name: "" }]);
   const [error, setError] = useState("");
@@ -17,7 +28,7 @@ export default function EditTrackPage() {
   useEffect(() => {
     const fetchTrack = async () => {
       const { data: trackData, error: trackError } = await supabase
-        .from("Tracks")
+        .from("tracks")
         .select("*")
         .eq("id", id)
         .single();
@@ -31,7 +42,7 @@ export default function EditTrackPage() {
 
       // Fetch configurations for this track
       const { data: configData, error: configError } = await supabase
-        .from("Track Config")
+        .from("track_configs")
         .select("*")
         .eq("track_id", id);
 
@@ -51,21 +62,133 @@ export default function EditTrackPage() {
     fetchTrack();
   }, [id]);
 
-  // Update track name
-  const handleUpdateTrack = async () => {
+  // Combined update function for track and configurations
+  const handleUpdate = async () => {
     if (!trackName) {
       setError("Track name is required.");
       return;
     }
 
+    if (configurations.some((config) => !config.name)) {
+      setError("All configuration names are required.");
+      return;
+    }
+
     try {
-      const { error: updateError } = await supabase
-        .from("Tracks")
+      // Update track name
+      const { error: trackError } = await supabase
+        .from("tracks")
         .update({ track_name: trackName })
         .eq("id", id);
 
-      if (updateError) {
-        setError(`Failed to update track: ${updateError.message}`);
+      if (trackError) {
+        throw new Error(`Failed to update track: ${trackError.message}`);
+      }
+
+      // Update configurations
+      // First fetch existing configurations
+      const { data: existingConfigs, error: fetchError } = await supabase
+        .from("track_configs")
+        .select("id, config_name")
+        .eq("track_id", id);
+
+      if (fetchError) {
+        throw new Error(
+          `Failed to fetch existing configurations: ${fetchError.message}`
+        );
+      }
+
+      // Get IDs of configurations we want to keep
+      const configIdsToKeep = configurations
+        .map((config) => config.id)
+        .filter((id) => id !== "");
+
+      // Find IDs to delete
+      const idsToDelete =
+        existingConfigs
+          ?.filter((config) => !configIdsToKeep.includes(config.id))
+          .map((config) => config.id) || [];
+
+      // Delete unwanted configurations
+      if (idsToDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from("track_configs")
+          .delete()
+          .in("id", idsToDelete);
+
+        if (deleteError) {
+          throw new Error(
+            `Failed to delete configurations: ${deleteError.message}`
+          );
+        }
+      }
+
+      // Update existing configurations and insert new ones
+      for (const config of configurations) {
+        if (config.id) {
+          // Update existing configuration
+          const { error: updateError } = await supabase
+            .from("track_configs")
+            .update({ config_name: config.name })
+            .eq("id", config.id);
+
+          if (updateError) {
+            throw new Error(
+              `Failed to update configuration: ${updateError.message}`
+            );
+          }
+        } else {
+          // Insert new configuration
+          const { error: insertError } = await supabase
+            .from("track_configs")
+            .insert({
+              track_id: id,
+              config_name: config.name,
+            });
+
+          if (insertError) {
+            throw new Error(
+              `Failed to insert new configuration: ${insertError.message}`
+            );
+          }
+        }
+      }
+
+      // Verify the changes
+      const { data: finalConfigs, error: verifyError } = await supabase
+        .from("track_configs")
+        .select("*")
+        .eq("track_id", id);
+
+      if (verifyError) {
+        throw new Error(`Failed to verify changes: ${verifyError.message}`);
+      }
+
+      if (!finalConfigs || finalConfigs.length === 0) {
+        throw new Error("No configurations were saved. Please try again.");
+      }
+
+      router.push("/protected/tracks");
+    } catch (e) {
+      console.error("Error updating track and configurations:", e);
+      setError(`Error: ${(e as Error).message}`);
+    }
+  };
+
+  // Delete track
+  const handleDeleteTrack = async () => {
+    try {
+      // Delete configurations first
+      await supabase.from("track_configs").delete().eq("track_id", id);
+
+      // Then delete the track
+      const { error: deleteError } = await supabase
+        .from("tracks")
+        .delete()
+        .eq("id", id);
+
+      if (deleteError) {
+        setError(`Failed to delete track: ${deleteError.message}`);
         return;
       }
 
@@ -82,7 +205,17 @@ export default function EditTrackPage() {
 
   // Remove a configuration input
   const handleRemoveConfiguration = (index: number) => {
-    const updatedConfigurations = configurations.filter((_, i) => i !== index);
+    // Don't allow removing the last configuration
+    if (configurations.length <= 1) {
+      setError("You must have at least one configuration");
+      return;
+    }
+
+    console.log("Before removal:", configurations);
+    // Create a new array without the configuration at the specified index
+    const updatedConfigurations = [...configurations];
+    updatedConfigurations.splice(index, 1);
+    console.log("After removal:", updatedConfigurations);
     setConfigurations(updatedConfigurations);
   };
 
@@ -91,61 +224,6 @@ export default function EditTrackPage() {
     const updatedConfigurations = [...configurations];
     updatedConfigurations[index].name = value;
     setConfigurations(updatedConfigurations);
-  };
-
-  // Update configurations
-  const handleUpdateConfigurations = async () => {
-    if (configurations.some((config) => !config.name)) {
-      setError("All configuration names are required.");
-      return;
-    }
-
-    try {
-      // Delete existing configurations for this track
-      await supabase.from("Track Config").delete().eq("track_id", id);
-
-      // Insert new configurations
-      const configurationsToInsert = configurations.map((config) => ({
-        track_id: id,
-        config_name: config.name,
-      }));
-
-      const { error: configError } = await supabase
-        .from("Track Config")
-        .insert(configurationsToInsert);
-
-      if (configError) {
-        setError(`Failed to update configurations: ${configError.message}`);
-        return;
-      }
-
-      router.push("/protected/tracks");
-    } catch (e) {
-      setError(`Unexpected error: ${(e as Error).message}`);
-    }
-  };
-
-  // Delete track
-  const handleDeleteTrack = async () => {
-    try {
-      // Delete configurations first
-      await supabase.from("Track Config").delete().eq("track_id", id);
-
-      // Then delete the track
-      const { error: deleteError } = await supabase
-        .from("Tracks")
-        .delete()
-        .eq("id", id);
-
-      if (deleteError) {
-        setError(`Failed to delete track: ${deleteError.message}`);
-        return;
-      }
-
-      router.push("/protected/tracks");
-    } catch (e) {
-      setError(`Unexpected error: ${(e as Error).message}`);
-    }
   };
 
   return (
@@ -191,20 +269,12 @@ export default function EditTrackPage() {
         </button>
       </div>
 
-      {/* Update Track Button */}
+      {/* Save Changes Button */}
       <button
-        onClick={handleUpdateTrack}
+        onClick={handleUpdate}
         className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
       >
-        Update Track
-      </button>
-
-      {/* Update Configurations Button */}
-      <button
-        onClick={handleUpdateConfigurations}
-        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-      >
-        Update Configurations
+        Save Changes
       </button>
 
       {/* Delete Button */}

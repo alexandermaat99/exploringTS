@@ -18,7 +18,7 @@ export default function EditCarPage() {
   useEffect(() => {
     const fetchCar = async () => {
       const { data, error } = await supabase
-        .from("Cars")
+        .from("cars")
         .select("*")
         .eq("id", id)
         .single();
@@ -41,7 +41,7 @@ export default function EditCarPage() {
 
     try {
       const { error: updateError } = await supabase
-        .from("Cars")
+        .from("cars")
         .update({
           car_name: carName,
           car_type: carType,
@@ -63,7 +63,7 @@ export default function EditCarPage() {
   const handleDeleteCar = async () => {
     try {
       const { error: deleteError } = await supabase
-        .from("Cars")
+        .from("cars")
         .delete()
         .eq("id", id);
 

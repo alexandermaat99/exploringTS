@@ -22,7 +22,7 @@ export default async function EditTrackTimePage({ params }: any) {
 
   // Fetch the track time record
   const { data: record, error } = await supabase
-    .from("Track Times")
+    .from("track_times")
     .select(
       `
     id,
@@ -30,11 +30,11 @@ export default async function EditTrackTimePage({ params }: any) {
     car_id,
     config_id,
     lap_record,
-    Cars!car_id(car_name),
-    "Track Config"!config_id(
+    cars!car_id(car_name),
+    "track_configs"!config_id(
       config_name,
       track_id,
-      Tracks!track_id(track_name)
+      tracks!track_id(track_name)
     )
   `
     )
@@ -56,17 +56,17 @@ export default async function EditTrackTimePage({ params }: any) {
 
   // Fetch all cars, tracks, and configurations for dropdowns
   const { data: cars } = await supabase
-    .from("Cars")
+    .from("cars")
     .select("id, car_name")
     .order("car_name");
 
   const { data: tracks } = await supabase
-    .from("Tracks")
+    .from("tracks")
     .select("id, track_name")
     .order("track_name");
 
   const { data: trackConfigs } = await supabase
-    .from("Track Config")
+    .from("track_configs")
     .select("id, config_name, track_id")
     .order("id");
 
@@ -107,7 +107,7 @@ export default async function EditTrackTimePage({ params }: any) {
           tracks={tracks || []}
           trackConfigs={trackConfigs || []}
           defaultTrackId={
-            (record["Track Config"] as unknown as { track_id?: number })
+            (record["track_configs"] as unknown as { track_id?: number })
               ?.track_id
           }
           defaultConfigId={record.config_id}
@@ -116,24 +116,59 @@ export default async function EditTrackTimePage({ params }: any) {
         {/* Lap Time Input */}
         <div>
           <label
-            htmlFor="lap_time"
+            htmlFor="lap_time_minutes"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            Lap Time (HH:MM:SS.ms)
+            Lap Time
           </label>
-          <input
-            type="text"
-            id="lap_time"
-            name="lap_time"
-            required
-            defaultValue={formattedLapTime}
-            placeholder="00:01:23.456"
-            pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{1,3}"
-            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-          />
-          <p className="mt-1 text-sm text-gray-500">
-            Format: Hours:Minutes:Seconds.Milliseconds (e.g., 00:01:23.456)
-          </p>
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <input
+                type="number"
+                id="lap_time_minutes"
+                name="lap_time_minutes"
+                required
+                min="0"
+                max="59"
+                placeholder="00"
+                defaultValue={Math.floor(record.lap_record / 60)}
+                className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-center"
+              />
+              <p className="mt-1 text-xs text-gray-500 text-center">Minutes</p>
+            </div>
+            <span className="text-xl font-bold">:</span>
+            <div className="flex-1">
+              <input
+                type="number"
+                id="lap_time_seconds"
+                name="lap_time_seconds"
+                required
+                min="0"
+                max="59"
+                placeholder="00"
+                defaultValue={Math.floor(record.lap_record % 60)}
+                className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-center"
+              />
+              <p className="mt-1 text-xs text-gray-500 text-center">Seconds</p>
+            </div>
+            <span className="text-xl font-bold">.</span>
+            <div className="flex-1">
+              <input
+                type="number"
+                id="lap_time_ms"
+                name="lap_time_ms"
+                required
+                min="0"
+                max="999"
+                placeholder="000"
+                defaultValue={Math.round((record.lap_record % 1) * 1000)}
+                className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-center"
+              />
+              <p className="mt-1 text-xs text-gray-500 text-center">
+                Milliseconds
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Submit and Cancel Buttons */}
@@ -177,14 +212,18 @@ async function updateTrackTime(formData: FormData) {
   const recordId = parseInt(formData.get("id") as string);
   const carId = parseInt(formData.get("car_id") as string);
   const configId = parseInt(formData.get("config_id") as string);
-  const lapTimeStr = formData.get("lap_time") as string;
 
-  // Convert HH:MM:SS.ms to seconds (float)
-  const lapTimeFloat = convertTimeStringToSeconds(lapTimeStr);
+  // Get time components
+  const minutes = parseInt(formData.get("lap_time_minutes") as string) || 0;
+  const seconds = parseInt(formData.get("lap_time_seconds") as string) || 0;
+  const milliseconds = parseInt(formData.get("lap_time_ms") as string) || 0;
+
+  // Convert to total seconds
+  const lapTimeFloat = minutes * 60 + seconds + milliseconds / 1000;
 
   // Verify ownership
   const { data: record } = await supabase
-    .from("Track Times")
+    .from("track_times")
     .select("user_id")
     .eq("id", recordId)
     .single();
@@ -195,7 +234,7 @@ async function updateTrackTime(formData: FormData) {
 
   // Update the track time
   const { error } = await supabase
-    .from("Track Times")
+    .from("track_times")
     .update({
       car_id: carId,
       config_id: configId,
@@ -212,26 +251,10 @@ async function updateTrackTime(formData: FormData) {
   redirect("/protected/records");
 }
 
-// Utility function to convert time string to seconds
-function convertTimeStringToSeconds(timeString: string): number {
-  // Parse HH:MM:SS.ms format to seconds
-  const [hourMinSec, ms] = timeString.split(".");
-  const [hours, minutes, seconds] = hourMinSec.split(":").map(Number);
-
-  // Calculate total seconds
-  const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-
-  // Add milliseconds if present
-  const milliseconds = ms ? Number(ms) / 1000 : 0;
-
-  return totalSeconds + milliseconds;
-}
-
 // Utility function to convert seconds to time string
 function secondsToTimeString(totalSeconds: number): string {
-  // Calculate hours, minutes, seconds
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  // Calculate minutes, seconds
+  const minutes = Math.floor(totalSeconds / 60);
   const seconds = Math.floor(totalSeconds % 60);
 
   // Calculate milliseconds (get decimal part)
@@ -239,6 +262,6 @@ function secondsToTimeString(totalSeconds: number): string {
     (totalSeconds - Math.floor(totalSeconds)) * 1000
   );
 
-  // Format the time string (HH:MM:SS.ms)
-  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${milliseconds.toString().padStart(3, "0")}`;
+  // Format the time string (MM:SS.ms)
+  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${milliseconds.toString().padStart(3, "0")}`;
 }
