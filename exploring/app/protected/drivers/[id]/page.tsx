@@ -65,14 +65,22 @@ async function getUserStats(userId: string): Promise<UserStats> {
   // Get favorite car by counting car usage
   const { data: carUsage } = await supabase
     .from("track_times")
-    .select("cars:cars!car_id(car_name)")
+    .select(
+      `
+      cars:cars!car_id(
+        car_name
+      )
+    `
+    )
     .eq("user_id", userId);
+
+  console.log("Car Usage Data Structure:", JSON.stringify(carUsage, null, 2));
 
   // Count car usage
   const carCounts = new Map<string, number>();
-  carUsage?.forEach((record: CarUsage) => {
-    const carName = record.cars[0]?.car_name;
-    if (carName) {
+  carUsage?.forEach((record: any) => {
+    if (record.cars && record.cars.car_name) {
+      const carName = record.cars.car_name;
       carCounts.set(carName, (carCounts.get(carName) || 0) + 1);
     }
   });
