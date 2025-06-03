@@ -1,3 +1,5 @@
+// Process best times to get unique track/config combinations
+const uniqueBestTimes = new Map();
 bestTimes?.forEach((time) => {
   const trackConfig = time.track_configs[0];
   const key = `${trackConfig.tracks[0].track_name}-${trackConfig.config_name}`;
