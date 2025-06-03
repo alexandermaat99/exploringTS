@@ -66,13 +66,39 @@ export default async function RecordDetailPage({
     user_id: record.user_id,
   });
 
-  // Get track ID for back navigation
-  const trackId = record.track_configs?.[0]?.tracks?.[0]?.id;
+  // Get track ID for back navigation with proper fallback handling
+  const trackConfig = Array.isArray(record.track_configs)
+    ? record.track_configs[0]
+    : record.track_configs;
+  const tracks = trackConfig?.tracks;
+  const trackId = Array.isArray(tracks) ? tracks[0]?.id : tracks?.id;
+
+  // Helper function to safely get car name
+  const getCarName = () => {
+    if (!record.cars) return null;
+    if (Array.isArray(record.cars)) {
+      return record.cars.length > 0 ? record.cars[0].car_name : null;
+    }
+    return record.cars.car_name;
+  };
+
+  // Helper function to safely get track name
+  const getTrackName = () => {
+    if (Array.isArray(tracks)) {
+      return tracks[0]?.track_name;
+    }
+    return tracks?.track_name;
+  };
+
+  // Helper function to safely get config name
+  const getConfigName = () => {
+    return trackConfig?.config_name;
+  };
 
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-6">
       <Link
-        href={`/${trackId}`}
+        href={trackId ? `/${trackId}` : "/"}
         className="flex items-center gap-2 text-blue-500 hover:text-blue-600"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -82,10 +108,10 @@ export default async function RecordDetailPage({
       <div className="bg-white dark:bg-slate-700 rounded-lg shadow p-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold mb-2">
-            {record.track_configs?.[0]?.tracks?.[0]?.track_name}
+            {getTrackName() || "Unknown Track"}
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
-            {record.track_configs?.[0]?.config_name}
+            {getConfigName() || "Unknown Configuration"}
           </p>
         </div>
 
@@ -113,7 +139,7 @@ export default async function RecordDetailPage({
           <div>
             <h2 className="text-lg font-semibold mb-1">Car</h2>
             <p>
-              {record.cars?.[0]?.car_name || (
+              {getCarName() || (
                 <span className="italic text-gray-500">Unknown Car</span>
               )}
             </p>
