@@ -19,7 +19,7 @@ export async function GET(
 
     const { data: profile, error } = await supabase
       .from("user_profiles")
-      .select("display_name")
+      .select("display_name, league_id, leagues(name)")
       .eq("id", userId)
       .single();
 

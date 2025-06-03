@@ -101,14 +101,19 @@ export default function Navigation() {
       { href: "/protected/records", label: "Track Times" },
       { href: "/protected/cars", label: "Cars" },
       { href: "/protected/tracks", label: "Tracks" },
-      { href: "/protected/league", label: "League" },
     ];
 
+    // Add league with dynamic name
     if (user) {
+      const leagueName = userProfile?.leagues?.name || "League";
+      baseItems.push({ href: "/protected/league", label: leagueName });
+
       // Debug logging
       console.log("Navigation - user:", user?.email);
       console.log("Navigation - userProfile:", userProfile);
       console.log("Navigation - display_name:", userProfile?.display_name);
+      console.log("Navigation - leagues:", userProfile?.leagues);
+      console.log("Navigation - league_name:", userProfile?.leagues?.name);
 
       const username =
         userProfile?.display_name || user.email?.split("@")[0] || "Profile";
