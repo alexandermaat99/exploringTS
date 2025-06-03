@@ -22,6 +22,34 @@ export default function Navigation() {
   useEffect(() => {
     let mounted = true;
 
+    const fetchProfile = async (userId: string) => {
+      try {
+        console.log(`Navigation - Fetching profile for user:`, userId);
+
+        // Use API route instead of direct database query
+        const response = await fetch(`/api/profile/${userId}`);
+        const result = await response.json();
+
+        console.log("Navigation - Profile result:", result);
+
+        if (!response.ok || result.error) {
+          console.error("Profile API error:", result.error);
+          if (mounted) {
+            setUserProfile({ display_name: null });
+          }
+        } else {
+          if (mounted) {
+            setUserProfile(result.profile);
+          }
+        }
+      } catch (error) {
+        console.error("Profile fetch error:", error);
+        if (mounted) {
+          setUserProfile({ display_name: null });
+        }
+      }
+    };
+
     const getUser = async () => {
       try {
         const {
@@ -33,19 +61,7 @@ export default function Navigation() {
         }
 
         if (user && mounted) {
-          try {
-            const { data: profile } = await supabase
-              .from("user_profiles")
-              .select("display_name")
-              .eq("id", user.id)
-              .single();
-
-            if (mounted) {
-              setUserProfile(profile);
-            }
-          } catch (error) {
-            console.error("Error fetching profile:", error);
-          }
+          await fetchProfile(user.id);
         }
       } catch (error) {
         console.error("Error fetching user:", error);
@@ -63,19 +79,7 @@ export default function Navigation() {
       setUser(currentUser ?? null);
 
       if (currentUser) {
-        try {
-          const { data: profile } = await supabase
-            .from("user_profiles")
-            .select("display_name")
-            .eq("id", currentUser.id)
-            .single();
-
-          if (mounted) {
-            setUserProfile(profile);
-          }
-        } catch (error) {
-          console.error("Error fetching profile:", error);
-        }
+        await fetchProfile(currentUser.id);
       } else {
         setUserProfile(null);
       }
@@ -101,8 +105,15 @@ export default function Navigation() {
     ];
 
     if (user) {
+      // Debug logging
+      console.log("Navigation - user:", user?.email);
+      console.log("Navigation - userProfile:", userProfile);
+      console.log("Navigation - display_name:", userProfile?.display_name);
+
       const username =
         userProfile?.display_name || user.email?.split("@")[0] || "Profile";
+      console.log("Navigation - final username:", username);
+
       baseItems.push({ href: "/protected/profile", label: username });
     }
 
