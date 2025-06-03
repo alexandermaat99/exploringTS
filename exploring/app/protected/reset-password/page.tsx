@@ -9,29 +9,47 @@ export default async function ResetPassword(props: {
 }) {
   const searchParams = await props.searchParams;
   return (
-    <form className="flex flex-col w-full max-w-md p-4 gap-2 [&>input]:mb-4">
-      <h1 className="text-2xl font-medium">Reset password</h1>
-      <p className="text-sm text-foreground/60">
-        Please enter your new password below.
-      </p>
-      <Label htmlFor="password">New password</Label>
-      <Input
-        type="password"
-        name="password"
-        placeholder="New password"
-        required
-      />
-      <Label htmlFor="confirmPassword">Confirm password</Label>
-      <Input
-        type="password"
-        name="confirmPassword"
-        placeholder="Confirm password"
-        required
-      />
-      <SubmitButton formAction={resetPasswordAction}>
-        Reset password
-      </SubmitButton>
-      <FormMessage message={searchParams} />
-    </form>
+    <div className="w-full min-h-screen flex items-center justify-center px-4 py-6">
+      <form className="w-full max-w-md bg-white dark:bg-slate-700 rounded-lg shadow p-6 space-y-4">
+        <div className="space-y-2">
+          <h1 className="text-xl sm:text-2xl font-medium">Reset password</h1>
+          <p className="text-sm text-foreground/60">
+            Please enter your new password below.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="password">New password</Label>
+            <Input
+              type="password"
+              name="password"
+              id="password"
+              placeholder="New password"
+              required
+              className="w-full"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm password</Label>
+            <Input
+              type="password"
+              name="confirmPassword"
+              id="confirmPassword"
+              placeholder="Confirm password"
+              required
+              className="w-full"
+            />
+          </div>
+        </div>
+
+        <SubmitButton formAction={resetPasswordAction} className="w-full">
+          Reset password
+        </SubmitButton>
+
+        <FormMessage message={searchParams} />
+      </form>
+    </div>
   );
 }

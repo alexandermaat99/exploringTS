@@ -12,6 +12,17 @@ export default async function AuthButton() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Get user profile with league info if logged in
+  let userProfile = null;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("*, leagues!league_id(name)")
+      .eq("id", user.id)
+      .single();
+    userProfile = profile;
+  }
+
   if (!hasEnvVars) {
     return (
       <>
@@ -48,9 +59,24 @@ export default async function AuthButton() {
       </>
     );
   }
+
   return user ? (
     <div className="flex items-center gap-4">
-      Hey, {user.email}!
+      <div className="flex items-center gap-2">
+        <Link
+          href="/protected/profile"
+          className="hover:text-blue-500 transition-colors"
+        >
+          {userProfile?.display_name || user.email?.split("@")[0] || "User"}
+        </Link>
+        <span className="text-gray-400">-</span>
+        <Link
+          href="/protected/league"
+          className="hover:text-blue-500 transition-colors"
+        >
+          {userProfile?.leagues?.name || "No League"}
+        </Link>
+      </div>
       <form action={signOutAction}>
         <Button type="submit" variant={"outline"}>
           Sign out

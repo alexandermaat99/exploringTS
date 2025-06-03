@@ -132,14 +132,14 @@ function CarsList({ page, searchTerm }: { page: number; searchTerm: string }) {
 
   if (cars.length === 0) {
     return (
-      <div className="my-8 text-center">
-        <p className="text-lg">
+      <div className="my-4 sm:my-8 text-center">
+        <p className="text-base sm:text-lg">
           No cars found
           {searchTerm ? ` matching "${searchTerm}"` : " in the database"}.
         </p>
         {searchTerm && (
           <Link href="/protected/cars">
-            <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+            <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 w-full sm:w-auto">
               Clear Search
             </button>
           </Link>
@@ -150,27 +150,32 @@ function CarsList({ page, searchTerm }: { page: number; searchTerm: string }) {
 
   return (
     <>
-      <ul className="space-y-4">
+      <ul className="space-y-3 sm:space-y-4">
         {cars.map((car: cars) => (
           <li
             key={car.id}
-            className="p-4 border rounded-md shadow-sm dark:bg-slate-700 bg-white flex justify-between items-center hover:shadow-md transition-shadow"
+            className="p-3 sm:p-4 border rounded-md shadow-sm dark:bg-slate-700 bg-white flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4 hover:shadow-md transition-shadow"
           >
-            <div>
-              <h2 className="text-xl font-semibold">{car.car_name}</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                <strong>Type:</strong> {car.car_type}
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                <strong>Series:</strong> {car.car_series}
-              </p>
+            <div className="space-y-1 sm:space-y-2">
+              <h2 className="text-lg sm:text-xl font-semibold break-words">
+                {car.car_name}
+              </h2>
+              <div className="space-y-1">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                  <strong>Type:</strong> {car.car_type}
+                </p>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                  <strong>Series:</strong> {car.car_series}
+                </p>
+              </div>
             </div>
             <Link
               href={`/protected/cars/edit-car/${car.id}`}
               aria-label={`Edit ${car.car_name}`}
+              className="w-full sm:w-auto"
             >
               <button
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="w-full sm:w-auto px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 aria-label={`Edit ${car.car_name}`}
               >
                 Edit
@@ -182,12 +187,13 @@ function CarsList({ page, searchTerm }: { page: number; searchTerm: string }) {
 
       {/* Pagination controls */}
       {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-6">
+        <div className="flex flex-wrap justify-center gap-2 mt-4 sm:mt-6">
           {page > 1 && (
             <Link
               href={`?page=${page - 1}${searchTerm ? `&search=${searchTerm}` : ""}`}
+              className="w-full sm:w-auto"
             >
-              <button className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+              <button className="w-full sm:w-auto px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
                 &laquo; Prev
               </button>
             </Link>
@@ -198,9 +204,10 @@ function CarsList({ page, searchTerm }: { page: number; searchTerm: string }) {
               <Link
                 key={pageNum}
                 href={`?page=${pageNum}${searchTerm ? `&search=${searchTerm}` : ""}`}
+                className="w-full sm:w-auto"
               >
                 <button
-                  className={`px-3 py-1 rounded ${
+                  className={`w-full sm:w-auto px-3 py-1 rounded ${
                     page === pageNum
                       ? "bg-blue-500 text-white"
                       : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
@@ -215,8 +222,9 @@ function CarsList({ page, searchTerm }: { page: number; searchTerm: string }) {
           {page < totalPages && (
             <Link
               href={`?page=${page + 1}${searchTerm ? `&search=${searchTerm}` : ""}`}
+              className="w-full sm:w-auto"
             >
-              <button className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+              <button className="w-full sm:w-auto px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
                 Next &raquo;
               </button>
             </Link>
@@ -249,10 +257,10 @@ function SearchParamsContent() {
 
   return (
     <>
-      <div className="flex flex-col sm:flex-row sm:justify-between gap-4 items-start">
+      <div className="flex flex-col sm:flex-row sm:justify-between gap-4 items-start sm:items-center">
         <Link href="/protected/cars/add-car" aria-label="Add new car">
           <button
-            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            className="w-full sm:w-auto px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
             aria-label="Add new car"
           >
             Add New Car
@@ -272,8 +280,8 @@ function SearchParamsContent() {
 // Main component
 export default function CarsPage() {
   return (
-    <div className="flex flex-col gap-8 p-4">
-      <h1 className="text-3xl font-bold">Cars</h1>
+    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-8">
+      <h1 className="text-xl sm:text-3xl font-bold">Cars</h1>
 
       {/* Wrap the component that uses useSearchParams in Suspense */}
       <Suspense fallback={<div>Loading search parameters...</div>}>

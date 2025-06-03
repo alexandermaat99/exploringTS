@@ -12,6 +12,28 @@ export default async function AddTrackTimePage() {
   // Create Supabase client
   const supabase = await createClient();
 
+  // Get current user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+
+  // Get current user's league
+  const { data: currentUserProfile } = await supabase
+    .from("user_profiles")
+    .select("league_id")
+    .eq("id", user.id)
+    .single();
+
+  // Get all users from the same league
+  const { data: leagueUsers } = await supabase
+    .from("user_profiles")
+    .select("id, display_name")
+    .eq("league_id", currentUserProfile?.league_id)
+    .order("display_name");
+
   // Fetch cars for dropdown
   const { data: cars } = await supabase
     .from("cars")
@@ -35,6 +57,30 @@ export default async function AddTrackTimePage() {
       <h1 className="text-3xl font-bold mb-6">Add New Track Time</h1>
 
       <form action={addTrackTime} className="space-y-6">
+        {/* Driver Selection */}
+        <div>
+          <label
+            htmlFor="user_id"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Driver
+          </label>
+          <select
+            id="user_id"
+            name="user_id"
+            required
+            defaultValue={user.id}
+            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+          >
+            {leagueUsers?.map((leagueUser) => (
+              <option key={leagueUser.id} value={leagueUser.id}>
+                {leagueUser.display_name ||
+                  `User ${leagueUser.id.substring(0, 8)}...`}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Car Selection */}
         <div>
           <label
@@ -157,8 +203,26 @@ async function addTrackTime(formData: FormData) {
   }
 
   // Extract form data
+  const userId = formData.get("user_id") as string;
   const carId = parseInt(formData.get("car_id") as string);
   const configId = parseInt(formData.get("config_id") as string);
+
+  // Verify the selected user is in the same league as the current user
+  const { data: currentUserProfile } = await supabase
+    .from("user_profiles")
+    .select("league_id")
+    .eq("id", user.id)
+    .single();
+
+  const { data: selectedUserProfile } = await supabase
+    .from("user_profiles")
+    .select("league_id")
+    .eq("id", userId)
+    .single();
+
+  if (currentUserProfile?.league_id !== selectedUserProfile?.league_id) {
+    throw new Error("You can only add times for drivers in your league");
+  }
 
   // Get time components
   const minutes = parseInt(formData.get("lap_time_minutes") as string) || 0;
@@ -170,7 +234,7 @@ async function addTrackTime(formData: FormData) {
 
   // Insert new track time
   const { error } = await supabase.from("track_times").insert({
-    user_id: user.id,
+    user_id: userId,
     car_id: carId,
     config_id: configId,
     lap_record: lapTimeFloat,

@@ -9,38 +9,130 @@ export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
   const password = formData.get("password")?.toString();
   const displayName = formData.get("display_name")?.toString();
+  const leagueOption = formData.get("league_option")?.toString();
+  const leagueCode = formData.get("league_code")?.toString();
+  const leagueName = formData.get("league_name")?.toString();
   const supabase = await createClient();
   const origin = (await headers()).get("origin");
 
-  if (!email || !password) {
+  if (!email || !password || !displayName || !leagueOption) {
+    return encodedRedirect("error", "/sign-up", "All fields are required");
+  }
+
+  // Validate league-specific fields
+  if (leagueOption === "join" && !leagueCode) {
     return encodedRedirect(
       "error",
       "/sign-up",
-      "Email and password are required"
+      "League code is required when joining a league"
+    );
+  }
+  if (leagueOption === "create" && !leagueName) {
+    return encodedRedirect(
+      "error",
+      "/sign-up",
+      "League name is required when creating a league"
     );
   }
 
-  const { error } = await supabase.auth.signUp({
+  let leagueId: string | null = null;
+
+  if (leagueOption === "join") {
+    // Verify the league code
+    const { data: league, error: leagueError } = await supabase
+      .from("leagues")
+      .select("id")
+      .eq("join_code", leagueCode)
+      .single();
+
+    if (leagueError || !league) {
+      return encodedRedirect(
+        "error",
+        "/sign-up",
+        "Invalid league code. Please check with your league administrator."
+      );
+    }
+    leagueId = league.id;
+  }
+
+  // Create the user account
+  const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: `${origin}/auth/callback`,
       data: {
-        display_name: displayName, // This sets the display name in user metadata
+        display_name: displayName,
       },
     },
   });
 
-  if (error) {
-    console.error(error.code + " " + error.message);
-    return encodedRedirect("error", "/sign-up", error.message);
-  } else {
-    return encodedRedirect(
-      "success",
-      "/sign-up",
-      "Thanks for signing up! Please check your email for a verification link."
-    );
+  if (authError) {
+    console.error(authError.code + " " + authError.message);
+    return encodedRedirect("error", "/sign-up", authError.message);
   }
+
+  if (authData.user) {
+    if (leagueOption === "create") {
+      // Generate a random 6-character join code
+      const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+      // Create new league
+      const { data: newLeague, error: createLeagueError } = await supabase
+        .from("leagues")
+        .insert({
+          name: leagueName,
+          join_code: joinCode,
+          created_by: authData.user.id,
+        })
+        .select()
+        .single();
+
+      if (createLeagueError) {
+        console.error("League creation error:", createLeagueError);
+        return encodedRedirect(
+          "error",
+          "/sign-up",
+          "Account created but league creation failed. Please contact support."
+        );
+      }
+
+      leagueId = newLeague.id;
+    }
+
+    // Create user profile with league association
+    const { error: profileError } = await supabase
+      .from("user_profiles")
+      .insert({
+        id: authData.user.id,
+        display_name: displayName,
+        league_id: leagueId,
+      });
+
+    if (profileError) {
+      console.error("Profile creation error:", profileError);
+      return encodedRedirect(
+        "error",
+        "/sign-up",
+        "Account created but profile setup failed. Please contact support."
+      );
+    }
+
+    // Return success message with join code if a new league was created
+    if (leagueOption === "create") {
+      return encodedRedirect(
+        "success",
+        "/sign-up",
+        `Thanks for signing up! Your league has been created with join code: ${newLeague.join_code}. Share this code with others to let them join. Please check your email for a verification link.`
+      );
+    }
+  }
+
+  return encodedRedirect(
+    "success",
+    "/sign-up",
+    "Thanks for signing up! Please check your email for a verification link."
+  );
 };
 
 export const signInAction = async (formData: FormData) => {
