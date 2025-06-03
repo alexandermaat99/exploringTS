@@ -4,6 +4,19 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
+interface TrackTime {
+  lap_record: number;
+  cars: {
+    car_name: string;
+  };
+  track_configs: {
+    config_name: string;
+    tracks: {
+      track_name: string;
+    };
+  };
+}
+
 interface UserStats {
   totalRecords: number;
   bestTimes: {
@@ -50,7 +63,7 @@ async function getUserStats(userId: string): Promise<UserStats> {
 
   // Process best times to get unique track/config combinations
   const uniqueBestTimes = new Map();
-  bestTimes?.forEach((time) => {
+  (bestTimes as TrackTime[] | null)?.forEach((time) => {
     const trackConfig = time.track_configs;
     const key = `${trackConfig.tracks.track_name}-${trackConfig.config_name}`;
     if (!uniqueBestTimes.has(key)) {
