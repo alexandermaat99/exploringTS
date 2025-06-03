@@ -20,7 +20,7 @@ interface TrackTime {
 interface CarUsage {
   cars: {
     car_name: string;
-  };
+  }[];
 }
 
 interface UserStats {
@@ -71,8 +71,10 @@ async function getUserStats(userId: string): Promise<UserStats> {
   // Count car usage
   const carCounts = new Map<string, number>();
   carUsage?.forEach((record: CarUsage) => {
-    const carName = record.cars.car_name;
-    carCounts.set(carName, (carCounts.get(carName) || 0) + 1);
+    const carName = record.cars[0]?.car_name;
+    if (carName) {
+      carCounts.set(carName, (carCounts.get(carName) || 0) + 1);
+    }
   });
 
   // Find the most used car
