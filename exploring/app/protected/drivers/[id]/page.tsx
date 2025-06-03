@@ -4,17 +4,13 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-interface TrackTime {
+interface DatabaseTrackTime {
   lap_record: number;
-  cars: {
-    car_name: string;
-  };
+  cars: { car_name: string }[];
   track_configs: {
     config_name: string;
-    tracks: {
-      track_name: string;
-    };
-  };
+    tracks: { track_name: string }[];
+  }[];
 }
 
 interface CarUsage {
@@ -74,34 +70,6 @@ async function getUserStats(userId: string): Promise<UserStats> {
     )
     .eq("user_id", userId);
 
-  console.log("Car Usage Data Structure:", JSON.stringify(carUsage, null, 2));
-
-  // Count car usage
-  const carCounts = new Map<string, number>();
-  carUsage?.forEach((record: any) => {
-    if (record.cars && record.cars.car_name) {
-      const carName = record.cars.car_name;
-      carCounts.set(carName, (carCounts.get(carName) || 0) + 1);
-    }
-  });
-
-  // Find the most used car
-  let favoriteCar: { carName: string; useCount: number } | undefined;
-  if (carCounts.size > 0) {
-    let maxUseCount = 0;
-    let mostUsedCar = "";
-    carCounts.forEach((count, car) => {
-      if (count > maxUseCount) {
-        maxUseCount = count;
-        mostUsedCar = car;
-      }
-    });
-    favoriteCar = {
-      carName: mostUsedCar,
-      useCount: maxUseCount,
-    };
-  }
-
   // Process best times to get unique track/config combinations
   const uniqueBestTimes = new Map<
     string,
@@ -113,15 +81,15 @@ async function getUserStats(userId: string): Promise<UserStats> {
     }
   >();
 
-  bestTimes?.forEach((time: TrackTime) => {
-    const trackConfig = time.track_configs;
-    const key = `${trackConfig.tracks.track_name}-${trackConfig.config_name}`;
+  bestTimes?.forEach((time: DatabaseTrackTime) => {
+    const trackConfig = time.track_configs[0];
+    const key = `${trackConfig.tracks[0].track_name}-${trackConfig.config_name}`;
     if (!uniqueBestTimes.has(key)) {
       uniqueBestTimes.set(key, {
-        trackName: trackConfig.tracks.track_name,
+        trackName: trackConfig.tracks[0].track_name,
         configName: trackConfig.config_name,
         lapTime: time.lap_record,
-        carName: time.cars.car_name,
+        carName: time.cars[0].car_name,
       });
     }
   });
@@ -129,7 +97,12 @@ async function getUserStats(userId: string): Promise<UserStats> {
   return {
     totalRecords: totalRecords || 0,
     bestTimes: Array.from(uniqueBestTimes.values()),
-    favoriteCar,
+    favoriteCar: carUsage?.[0]
+      ? {
+          carName: carUsage[0].car_name,
+          useCount: carUsage[0].count,
+        }
+      : undefined,
   };
 }
 
