@@ -82,10 +82,10 @@ export default async function RecordDetailPage({
       <div className="bg-white dark:bg-slate-700 rounded-lg shadow p-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold mb-2">
-            {record.track_configs.tracks.track_name}
+            {record.track_configs?.[0]?.tracks?.[0]?.track_name}
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
-            {record.track_configs.config_name}
+            {record.track_configs?.[0]?.config_name}
           </p>
         </div>
 
@@ -113,7 +113,7 @@ export default async function RecordDetailPage({
           <div>
             <h2 className="text-lg font-semibold mb-1">Car</h2>
             <p>
-              {record.cars.car_name || (
+              {record.cars?.[0]?.car_name || (
                 <span className="italic text-gray-500">Unknown Car</span>
               )}
             </p>

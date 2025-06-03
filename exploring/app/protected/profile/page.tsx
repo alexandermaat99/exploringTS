@@ -50,14 +50,14 @@ async function getUserStats(userId: string): Promise<UserStats> {
   // Process best times to get unique track/config combinations
   const uniqueBestTimes = new Map();
   bestTimes?.forEach((time) => {
-    const trackConfig = time.track_configs;
-    const key = `${trackConfig.tracks.track_name}-${trackConfig.config_name}`;
+    const trackConfig = time.track_configs[0];
+    const key = `${trackConfig.tracks[0].track_name}-${trackConfig.config_name}`;
     if (!uniqueBestTimes.has(key)) {
       uniqueBestTimes.set(key, {
-        trackName: trackConfig.tracks.track_name,
+        trackName: trackConfig.tracks[0].track_name,
         configName: trackConfig.config_name,
         lapTime: time.lap_record,
-        carName: time.cars.car_name,
+        carName: time.cars[0].car_name,
       });
     }
   });

@@ -28,12 +28,8 @@ interface track_times {
 
 // Helper functions for safer property access
 function getCarName(record: track_times): string | null {
-  if (!record.cars) return null;
-  return Array.isArray(record.cars)
-    ? record.cars.length > 0
-      ? record.cars[0].car_name
-      : null
-    : record.cars.car_name;
+  if (!record.cars?.length) return null;
+  return record.cars[0].car_name;
 }
 
 function getTrackName(record: track_times): string | null {
