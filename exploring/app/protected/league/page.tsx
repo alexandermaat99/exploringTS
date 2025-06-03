@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import CopyButton from "@/components/CopyButton";
 
 export default async function LeaguePage() {
   const supabase = await createClient();
@@ -60,9 +61,14 @@ export default async function LeaguePage() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               League Code
             </label>
-            <p className="text-sm sm:text-base font-mono bg-gray-100 dark:bg-gray-800 p-2 rounded break-all">
-              {userProfile?.league_id || "No League Code"}
-            </p>
+            <div className="flex items-center">
+              <p className="text-sm sm:text-base font-mono bg-gray-100 dark:bg-gray-800 p-2 rounded break-all flex-1 mr-2">
+                {userProfile?.league_id || "No League Code"}
+              </p>
+              {userProfile?.league_id && (
+                <CopyButton text={userProfile.league_id} />
+              )}
+            </div>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
               Share this code with others to join your league
             </p>
