@@ -1,61 +1,160 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
-import ClientHeaderAuth from "./client-header-auth";
 import { hasEnvVars } from "@/utils/supabase/check-env-vars";
 import { EnvVarWarning } from "./env-var-warning";
+import { createBrowserClient } from "@supabase/ssr";
 
 export default function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    const getUser = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (mounted) {
+          setUser(user);
+        }
+
+        if (user && mounted) {
+          try {
+            const { data: profile } = await supabase
+              .from("user_profiles")
+              .select("display_name")
+              .eq("id", user.id)
+              .single();
+
+            if (mounted) {
+              setUserProfile(profile);
+            }
+          } catch (error) {
+            console.error("Error fetching profile:", error);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user:", error);
+      }
+    };
+
+    getUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
+      const currentUser = session?.user;
+      setUser(currentUser ?? null);
+
+      if (currentUser) {
+        try {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("display_name")
+            .eq("id", currentUser.id)
+            .single();
+
+          if (mounted) {
+            setUserProfile(profile);
+          }
+        } catch (error) {
+          console.error("Error fetching profile:", error);
+        }
+      } else {
+        setUserProfile(null);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
   };
 
-  const navItems = [
-    // { href: "/", label: "Track Records" },
-    { href: "/protected/records", label: "Track Times" },
-    { href: "/protected/cars", label: "Cars" },
-    { href: "/protected/tracks", label: "Tracks" },
-    { href: "/protected/league", label: "League" },
-    { href: "/protected/profile", label: "Profile" },
-  ];
+  // Create nav items with dynamic username for profile
+  const getNavItems = () => {
+    const baseItems = [
+      { href: "/protected/records", label: "Track Times" },
+      { href: "/protected/cars", label: "Cars" },
+      { href: "/protected/tracks", label: "Tracks" },
+      { href: "/protected/league", label: "League" },
+    ];
+
+    if (user) {
+      const username =
+        userProfile?.display_name || user.email?.split("@")[0] || "Profile";
+      baseItems.push({ href: "/protected/profile", label: username });
+    }
+
+    return baseItems;
+  };
+
+  const navItems = getNavItems();
 
   return (
     <nav className="bg-white dark:bg-slate-800 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          {/* Logo - Always visible */}
-          <div className="flex items-center">
+        <div className="flex items-center h-16">
+          {/* Logo - Left side */}
+          <div className="flex-shrink-0">
             <Link href="/" className="text-xl font-bold">
               Maat Huis Track Records
             </Link>
           </div>
 
-          {/* Desktop Navigation Items */}
-          <div className="hidden md:flex md:space-x-4 md:items-center">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="text-gray-700 dark:text-gray-200 hover:text-blue-500 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                {item.label}
-              </Link>
-            ))}
+          {/* Desktop Navigation Items - Centered */}
+          <div className="hidden md:flex md:flex-1 md:justify-center">
+            <div className="flex space-x-8">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="text-gray-700 dark:text-gray-200 hover:text-blue-500 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
           </div>
 
-          {/* Desktop Auth */}
-          <div className="hidden md:flex items-center">
-            {!hasEnvVars ? <EnvVarWarning /> : <ClientHeaderAuth />}
+          {/* Desktop Auth - Right side */}
+          <div className="hidden md:flex md:flex-shrink-0 md:ml-6">
+            {!hasEnvVars ? (
+              <EnvVarWarning />
+            ) : !user ? (
+              <div className="flex gap-2">
+                <Button asChild size="sm" variant={"outline"}>
+                  <Link href="/sign-in">Sign in</Link>
+                </Button>
+                <Button asChild size="sm" variant={"default"}>
+                  <Link href="/sign-up">Sign up</Link>
+                </Button>
+              </div>
+            ) : null}
           </div>
 
-          {/* Mobile menu button - Now on the right */}
-          <div className="md:hidden flex items-center">
+          {/* Mobile menu button - Right side */}
+          <div className="md:hidden ml-auto">
             <Button
               variant="ghost"
               size="sm"
@@ -81,9 +180,22 @@ export default function Navigation() {
         )}
       >
         {/* Mobile Auth Info */}
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-          {!hasEnvVars ? <EnvVarWarning /> : <ClientHeaderAuth />}
-        </div>
+        {!hasEnvVars ? (
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <EnvVarWarning />
+          </div>
+        ) : !user ? (
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex gap-2">
+              <Button asChild size="sm" variant={"outline"}>
+                <Link href="/sign-in">Sign in</Link>
+              </Button>
+              <Button asChild size="sm" variant={"default"}>
+                <Link href="/sign-up">Sign up</Link>
+              </Button>
+            </div>
+          </div>
+        ) : null}
 
         {/* Mobile Navigation Items */}
         <div className="px-2 pt-2 pb-3 space-y-1 bg-white dark:bg-slate-800 shadow-lg">
@@ -91,7 +203,7 @@ export default function Navigation() {
             <Link
               key={item.href}
               href={item.href}
-              className="text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-blue-500 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium transition-colors text-right"
+              className="text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-blue-500 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium transition-colors"
               onClick={() => setIsOpen(false)}
             >
               {item.label}

@@ -14,9 +14,7 @@ interface DatabaseTrackTime {
 }
 
 interface CarUsageResponse {
-  cars: {
-    car_name: string;
-  };
+  car_name: string;
   count: number;
 }
 
@@ -136,9 +134,9 @@ async function getUserStats(userId: string): Promise<UserStats> {
     return {
       totalRecords: totalRecords || 0,
       bestTimes: Array.from(uniqueBestTimes.values()),
-      favoriteCar: carUsage?.[0]?.cars?.car_name
+      favoriteCar: carUsage?.[0]?.car_name
         ? {
-            carName: carUsage[0].cars.car_name,
+            carName: carUsage[0].car_name,
             useCount: carUsage[0].count,
           }
         : undefined,

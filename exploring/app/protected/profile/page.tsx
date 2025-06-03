@@ -13,9 +13,7 @@ interface DatabaseTrackTime {
 }
 
 interface CarUsageResponse {
-  cars: {
-    car_name: string;
-  };
+  car_name: string;
   count: number;
 }
 
@@ -34,7 +32,6 @@ interface UserStats {
 }
 
 async function getUserStats(userId: string): Promise<UserStats> {
-  console.log("=== getUserStats CALLED (Profile Page) ===", userId);
   const supabase = await createClient();
 
   try {
@@ -43,8 +40,6 @@ async function getUserStats(userId: string): Promise<UserStats> {
       .from("track_times")
       .select("*", { count: "exact" })
       .eq("user_id", userId);
-
-    console.log("=== Total records count:", totalRecords);
 
     // Get best times for each track configuration with error handling
     let bestTimes: DatabaseTrackTime[] | null = null;
@@ -67,8 +62,6 @@ async function getUserStats(userId: string): Promise<UserStats> {
       if (!error && bestTimesData) {
         bestTimes = bestTimesData;
       }
-
-      console.log("BestTimes raw data:", JSON.stringify(bestTimes, null, 2));
     } catch (error) {
       console.error("Error fetching best times:", error);
     }
@@ -132,18 +125,18 @@ async function getUserStats(userId: string): Promise<UserStats> {
       }
     });
 
-    console.log("BestTimes processed:", Array.from(uniqueBestTimes.values()));
-
-    return {
+    const finalStats = {
       totalRecords: totalRecords || 0,
       bestTimes: Array.from(uniqueBestTimes.values()),
-      favoriteCar: carUsage?.[0]?.cars?.car_name
+      favoriteCar: carUsage?.[0]?.car_name
         ? {
-            carName: carUsage[0].cars.car_name,
+            carName: carUsage[0].car_name,
             useCount: carUsage[0].count,
           }
         : undefined,
     };
+
+    return finalStats;
   } catch (error) {
     console.error("Error in getUserStats:", error);
     // Return safe defaults if anything fails

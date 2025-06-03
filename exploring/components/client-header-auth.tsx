@@ -11,45 +11,47 @@ export default function ClientHeaderAuth() {
   const [user, setUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data: profile, error } = await supabase
-        .from("user_profiles")
-        .select("*, leagues!inner(*)")
-        .eq("id", userId)
-        .single();
-
-      if (error) {
-        console.error("Error fetching profile:", error);
-        return;
-      }
-
-      console.log("Fetched profile:", profile);
-      setUserProfile(profile);
-    } catch (error) {
-      console.error("Error in fetchUserProfile:", error);
-    }
-  };
-
   useEffect(() => {
+    let mounted = true;
+
     const getUser = async () => {
       try {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        setUser(user);
-        if (user) {
-          await fetchUserProfile(user.id);
+
+        if (mounted) {
+          setUser(user);
+          setLoading(false);
+        }
+
+        // Try to get profile but don't let it block showing the user
+        if (user && mounted) {
+          try {
+            const { data: profile } = await supabase
+              .from("user_profiles")
+              .select("*, leagues!league_id(*)")
+              .eq("id", user.id)
+              .single();
+
+            if (mounted) {
+              setUserProfile(profile);
+            }
+          } catch (error) {
+            console.error("Error fetching profile:", error);
+          }
         }
       } catch (error) {
         console.error("Error fetching user:", error);
-      } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -58,20 +60,37 @@ export default function ClientHeaderAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
       const currentUser = session?.user;
       setUser(currentUser ?? null);
+      setLoading(false);
 
       if (currentUser) {
-        await fetchUserProfile(currentUser.id);
+        // Try to get profile but don't block the UI
+        try {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("*, leagues!league_id(*)")
+            .eq("id", currentUser.id)
+            .single();
+
+          if (mounted) {
+            setUserProfile(profile);
+          }
+        } catch (error) {
+          console.error("Error fetching profile:", error);
+        }
       } else {
         setUserProfile(null);
       }
     });
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase]);
 
   if (!hasEnvVars) {
     return (
@@ -107,18 +126,15 @@ export default function ClientHeaderAuth() {
   }
 
   if (loading) {
-    return <div className="h-8" />; // Placeholder while loading to prevent layout shift
+    return (
+      <div className="h-8 w-32 animate-pulse bg-gray-200 dark:bg-gray-600 rounded" />
+    );
   }
 
   return user ? (
-    <div className="flex items-center">
-      <div className="flex flex-col md:flex-row items-center md:items-baseline gap-1 md:gap-2">
-        <div className="text-sm md:text-base font-medium">
-          {userProfile?.display_name || user.email?.split("@")[0] || "User"}
-        </div>
-        <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-          {userProfile?.leagues?.name || "No League"}
-        </div>
+    <div className="flex items-center gap-4">
+      <div className="text-sm md:text-base font-medium">
+        {userProfile?.display_name || user.email?.split("@")[0] || "User"}
       </div>
     </div>
   ) : (
