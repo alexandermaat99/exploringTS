@@ -13,10 +13,11 @@ interface DatabaseTrackTime {
   }[];
 }
 
-interface CarUsage {
+interface CarUsageResponse {
   cars: {
     car_name: string;
-  }[];
+  };
+  count: number;
 }
 
 interface UserStats {
@@ -59,16 +60,9 @@ async function getUserStats(userId: string): Promise<UserStats> {
     .order("lap_record", { ascending: true });
 
   // Get favorite car by counting car usage
-  const { data: carUsage } = await supabase
-    .from("track_times")
-    .select(
-      `
-      cars:cars!car_id(
-        car_name
-      )
-    `
-    )
-    .eq("user_id", userId);
+  const { data: carUsage } = (await supabase.rpc("get_favorite_car", {
+    user_id_param: userId,
+  })) as { data: CarUsageResponse[] | null };
 
   // Process best times to get unique track/config combinations
   const uniqueBestTimes = new Map<
@@ -99,7 +93,7 @@ async function getUserStats(userId: string): Promise<UserStats> {
     bestTimes: Array.from(uniqueBestTimes.values()),
     favoriteCar: carUsage?.[0]
       ? {
-          carName: carUsage[0].car_name,
+          carName: carUsage[0].cars.car_name,
           useCount: carUsage[0].count,
         }
       : undefined,
