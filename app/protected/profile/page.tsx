@@ -26,11 +26,83 @@ async function getUserStats(userId: string): Promise<UserStats> {
       .select("*", { count: "exact" })
       .eq("user_id", userId);
 
-    // Return basic stats without complex data processing to avoid errors
+    // Get best times with proper error handling
+    let bestTimesData: any[] = [];
+    try {
+      const { data: bestTimes, error } = await supabase
+        .from("track_times")
+        .select(
+          `
+          lap_record,
+          cars!car_id(car_name),
+          track_configs!config_id(
+            config_name,
+            tracks!track_id(track_name)
+          )
+        `
+        )
+        .eq("user_id", userId)
+        .order("lap_record", { ascending: true });
+
+      if (!error && bestTimes) {
+        bestTimesData = bestTimes;
+      }
+    } catch (error) {
+      console.error("Error fetching best times:", error);
+    }
+
+    // Get favorite car with fallback
+    let favoriteCar = undefined;
+    try {
+      const { data: carUsage, error } = await supabase.rpc("get_favorite_car", {
+        user_id_param: userId,
+      });
+
+      if (!error && carUsage?.[0]) {
+        favoriteCar = {
+          carName: carUsage[0].car_name,
+          useCount: carUsage[0].count,
+        };
+      }
+    } catch (error) {
+      console.error("Error fetching favorite car:", error);
+    }
+
+    // Process best times safely
+    const uniqueBestTimes = new Map();
+
+    bestTimesData.forEach((time) => {
+      try {
+        // Safely check the structure
+        const trackConfig = time?.track_configs?.[0];
+        const car = time?.cars?.[0];
+        const track = trackConfig?.tracks?.[0];
+
+        if (
+          track?.track_name &&
+          trackConfig?.config_name &&
+          car?.car_name &&
+          time?.lap_record
+        ) {
+          const key = `${track.track_name}-${trackConfig.config_name}`;
+          if (!uniqueBestTimes.has(key)) {
+            uniqueBestTimes.set(key, {
+              trackName: track.track_name,
+              configName: trackConfig.config_name,
+              lapTime: time.lap_record,
+              carName: car.car_name,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error processing time entry:", error);
+      }
+    });
+
     return {
       totalRecords: totalRecords || 0,
-      bestTimes: [], // Empty array to avoid processing errors
-      favoriteCar: undefined, // Skip favorite car to avoid RPC errors
+      bestTimes: Array.from(uniqueBestTimes.values()),
+      favoriteCar: favoriteCar,
     };
   } catch (error) {
     console.error("Error in getUserStats:", error);
