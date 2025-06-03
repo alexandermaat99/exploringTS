@@ -67,7 +67,7 @@ export default async function RecordDetailPage({
   });
 
   // Get track ID for back navigation
-  const trackId = record.track_configs.tracks.id;
+  const trackId = record.track_configs?.[0]?.tracks?.[0]?.id;
 
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-6">
