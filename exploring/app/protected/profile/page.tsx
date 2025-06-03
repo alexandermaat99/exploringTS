@@ -3,6 +3,22 @@ import { redirect } from "next/navigation";
 import { signOutAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 
+interface DatabaseTrackTime {
+  lap_record: number;
+  cars: { car_name: string }[];
+  track_configs: {
+    config_name: string;
+    tracks: { track_name: string }[];
+  }[];
+}
+
+interface CarUsageResponse {
+  cars: {
+    car_name: string;
+  };
+  count: number;
+}
+
 interface UserStats {
   totalRecords: number;
   bestTimes: {
@@ -18,6 +34,7 @@ interface UserStats {
 }
 
 async function getUserStats(userId: string): Promise<UserStats> {
+  console.log("=== getUserStats CALLED (Profile Page) ===", userId);
   const supabase = await createClient();
 
   try {
@@ -27,10 +44,12 @@ async function getUserStats(userId: string): Promise<UserStats> {
       .select("*", { count: "exact" })
       .eq("user_id", userId);
 
-    // Get best times with proper error handling
-    let bestTimesData: any[] = [];
+    console.log("=== Total records count:", totalRecords);
+
+    // Get best times for each track configuration with error handling
+    let bestTimes: DatabaseTrackTime[] | null = null;
     try {
-      const { data: bestTimes, error } = await supabase
+      const { data: bestTimesData, error } = await supabase
         .from("track_times")
         .select(
           `
@@ -45,40 +64,53 @@ async function getUserStats(userId: string): Promise<UserStats> {
         .eq("user_id", userId)
         .order("lap_record", { ascending: true });
 
-      if (!error && bestTimes) {
-        bestTimesData = bestTimes;
+      if (!error && bestTimesData) {
+        bestTimes = bestTimesData;
       }
+
+      console.log("BestTimes raw data:", JSON.stringify(bestTimes, null, 2));
     } catch (error) {
       console.error("Error fetching best times:", error);
     }
 
-    // Get favorite car with fallback
-    let favoriteCar = undefined;
+    // Get favorite car by counting car usage with error handling
+    let carUsage: CarUsageResponse[] | null = null;
     try {
-      const { data: carUsage, error } = await supabase.rpc("get_favorite_car", {
-        user_id_param: userId,
-      });
+      const { data: carUsageData, error } = (await supabase.rpc(
+        "get_favorite_car",
+        {
+          user_id_param: userId,
+        }
+      )) as { data: CarUsageResponse[] | null; error: any };
 
-      if (!error && carUsage?.[0]) {
-        favoriteCar = {
-          carName: carUsage[0].car_name,
-          useCount: carUsage[0].count,
-        };
+      if (!error && carUsageData) {
+        carUsage = carUsageData;
       }
     } catch (error) {
       console.error("Error fetching favorite car:", error);
     }
 
-    // Process best times safely
-    const uniqueBestTimes = new Map();
+    // Process best times to get unique track/config combinations
+    const uniqueBestTimes = new Map<
+      string,
+      {
+        trackName: string;
+        configName: string;
+        lapTime: number;
+        carName: string;
+      }
+    >();
 
-    bestTimesData.forEach((time) => {
+    bestTimes?.forEach((time) => {
       try {
-        // Safely check the structure
-        const trackConfig = time?.track_configs?.[0];
-        const car = time?.cars?.[0];
-        const track = trackConfig?.tracks?.[0];
-
+        // Handle both array and object cases for cars and track_configs
+        const trackConfig = Array.isArray(time?.track_configs)
+          ? time.track_configs[0]
+          : time.track_configs;
+        const car = Array.isArray(time?.cars) ? time.cars[0] : time.cars;
+        const track = Array.isArray(trackConfig?.tracks)
+          ? trackConfig.tracks[0]
+          : trackConfig?.tracks;
         if (
           track?.track_name &&
           trackConfig?.config_name &&
@@ -100,10 +132,17 @@ async function getUserStats(userId: string): Promise<UserStats> {
       }
     });
 
+    console.log("BestTimes processed:", Array.from(uniqueBestTimes.values()));
+
     return {
       totalRecords: totalRecords || 0,
       bestTimes: Array.from(uniqueBestTimes.values()),
-      favoriteCar: favoriteCar,
+      favoriteCar: carUsage?.[0]?.cars?.car_name
+        ? {
+            carName: carUsage[0].cars.car_name,
+            useCount: carUsage[0].count,
+          }
+        : undefined,
     };
   } catch (error) {
     console.error("Error in getUserStats:", error);

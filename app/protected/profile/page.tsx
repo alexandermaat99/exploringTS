@@ -2,6 +2,15 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
+interface DatabaseTrackTime {
+  lap_record: number;
+  cars: { car_name: string }[];
+  track_configs: {
+    config_name: string;
+    tracks: { track_name: string }[];
+  }[];
+}
+
 interface UserStats {
   totalRecords: number;
   bestTimes: {
@@ -17,17 +26,22 @@ interface UserStats {
 }
 
 async function getUserStats(userId: string): Promise<UserStats> {
+  console.log("=== getUserStats called with userId:", userId);
   const supabase = await createClient();
 
   try {
+    console.log("=== Starting getUserStats execution");
+
     // Get total number of records
     const { count: totalRecords } = await supabase
       .from("track_times")
       .select("*", { count: "exact" })
       .eq("user_id", userId);
 
+    console.log("=== Total records count:", totalRecords);
+
     // Get best times with proper error handling
-    let bestTimesData: any[] = [];
+    let bestTimesData: DatabaseTrackTime[] | null = null;
     try {
       const { data: bestTimes, error } = await supabase
         .from("track_times")
@@ -44,8 +58,16 @@ async function getUserStats(userId: string): Promise<UserStats> {
         .eq("user_id", userId)
         .order("lap_record", { ascending: true });
 
+      console.log("Best times query result:", { bestTimes, error });
+
       if (!error && bestTimes) {
         bestTimesData = bestTimes;
+        console.log(
+          "Best times data structure:",
+          JSON.stringify(bestTimes[0], null, 2)
+        );
+      } else {
+        console.log("Best times query error:", error);
       }
     } catch (error) {
       console.error("Error fetching best times:", error);
@@ -69,15 +91,26 @@ async function getUserStats(userId: string): Promise<UserStats> {
     }
 
     // Process best times safely
-    const uniqueBestTimes = new Map();
+    const uniqueBestTimes = new Map<
+      string,
+      {
+        trackName: string;
+        configName: string;
+        lapTime: number;
+        carName: string;
+      }
+    >();
 
-    bestTimesData.forEach((time) => {
+    bestTimesData?.forEach((time) => {
       try {
-        // Safely check the structure
-        const trackConfig = time?.track_configs?.[0];
-        const car = time?.cars?.[0];
-        const track = trackConfig?.tracks?.[0];
-
+        // Handle both array and object cases for cars and track_configs
+        const trackConfig = Array.isArray(time?.track_configs)
+          ? time.track_configs[0]
+          : time.track_configs;
+        const car = Array.isArray(time?.cars) ? time.cars[0] : time.cars;
+        const track = Array.isArray(trackConfig?.tracks)
+          ? trackConfig.tracks[0]
+          : trackConfig?.tracks;
         if (
           track?.track_name &&
           trackConfig?.config_name &&
@@ -98,6 +131,11 @@ async function getUserStats(userId: string): Promise<UserStats> {
         console.error("Error processing time entry:", error);
       }
     });
+
+    console.log(
+      "Final unique best times:",
+      Array.from(uniqueBestTimes.values())
+    );
 
     return {
       totalRecords: totalRecords || 0,
@@ -204,6 +242,7 @@ export default async function ProfilePage() {
 
           <div>
             <h3 className="text-lg font-semibold mb-2">Best Times</h3>
+            <p>DEBUG: {JSON.stringify(stats.bestTimes)}</p>
             <div className="space-y-2">
               {stats.bestTimes.map((time, index) => (
                 <div
@@ -211,10 +250,12 @@ export default async function ProfilePage() {
                   className="border-b border-gray-200 dark:border-gray-600 pb-2"
                 >
                   <p className="font-medium">
-                    {time.trackName} - {time.configName}
+                    {time.trackName || "No Track"} -{" "}
+                    {time.configName || "No Config"}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {secondsToTimeString(time.lapTime)} with {time.carName}
+                    {secondsToTimeString(time.lapTime)} with{" "}
+                    {time.carName || "No Car"}
                   </p>
                 </div>
               ))}

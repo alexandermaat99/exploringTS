@@ -59,26 +59,30 @@ async function getUserStats(userId: string): Promise<UserStats> {
     .eq("user_id", userId);
 
   // Process best times to get unique track/config combinations
-  const uniqueBestTimes = new Map<
-    string,
-    {
-      trackName: string;
-      configName: string;
-      lapTime: number;
-      carName: string;
-    }
-  >();
-
-  bestTimes?.forEach((time: DatabaseTrackTime) => {
-    const trackConfig = time.track_configs[0];
-    const key = `${trackConfig.tracks[0].track_name}-${trackConfig.config_name}`;
-    if (!uniqueBestTimes.has(key)) {
-      uniqueBestTimes.set(key, {
-        trackName: trackConfig.tracks[0].track_name,
-        configName: trackConfig.config_name,
-        lapTime: time.lap_record,
-        carName: time.cars[0].car_name,
-      });
+  const uniqueBestTimes = new Map();
+  bestTimes?.forEach((time) => {
+    try {
+      const trackConfig = time?.track_configs?.[0];
+      const car = time?.cars?.[0];
+      const track = trackConfig?.tracks?.[0];
+      if (
+        track?.track_name &&
+        trackConfig?.config_name &&
+        car?.car_name &&
+        time?.lap_record
+      ) {
+        const key = `${track.track_name}-${trackConfig.config_name}`;
+        if (!uniqueBestTimes.has(key)) {
+          uniqueBestTimes.set(key, {
+            trackName: track.track_name,
+            configName: trackConfig.config_name,
+            lapTime: time.lap_record,
+            carName: car.car_name,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error processing time entry:", error);
     }
   });
 
