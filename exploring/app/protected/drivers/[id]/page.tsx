@@ -17,6 +17,12 @@ interface TrackTime {
   };
 }
 
+interface CarUsage {
+  cars: {
+    car_name: string;
+  };
+}
+
 interface UserStats {
   totalRecords: number;
   bestTimes: {
@@ -59,12 +65,12 @@ async function getUserStats(userId: string): Promise<UserStats> {
   // Get favorite car by counting car usage
   const { data: carUsage } = await supabase
     .from("track_times")
-    .select("cars!car_id(car_name)")
+    .select("cars:cars!car_id(car_name)")
     .eq("user_id", userId);
 
   // Count car usage
   const carCounts = new Map<string, number>();
-  carUsage?.forEach((record) => {
+  carUsage?.forEach((record: CarUsage) => {
     const carName = record.cars.car_name;
     carCounts.set(carName, (carCounts.get(carName) || 0) + 1);
   });
