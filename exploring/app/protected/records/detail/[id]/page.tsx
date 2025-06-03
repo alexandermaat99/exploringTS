@@ -20,10 +20,11 @@ function secondsToTimeString(totalSeconds: number | null): string {
 export default async function RecordDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const supabase = await createClient();
-  const recordId = parseInt(params.id);
+  const { id } = await params;
+  const recordId = parseInt(id);
 
   // Fetch the record with all related data
   const { data: record, error } = await supabase
