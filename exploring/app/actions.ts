@@ -73,12 +73,13 @@ export const signUpAction = async (formData: FormData) => {
   }
 
   if (authData.user) {
+    let newLeague;
     if (leagueOption === "create") {
       // Generate a random 6-character join code
       const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
       // Create new league
-      const { data: newLeague, error: createLeagueError } = await supabase
+      const { data: leagueData, error: createLeagueError } = await supabase
         .from("leagues")
         .insert({
           name: leagueName,
@@ -97,6 +98,7 @@ export const signUpAction = async (formData: FormData) => {
         );
       }
 
+      newLeague = leagueData;
       leagueId = newLeague.id;
     }
 
@@ -119,7 +121,7 @@ export const signUpAction = async (formData: FormData) => {
     }
 
     // Return success message with join code if a new league was created
-    if (leagueOption === "create") {
+    if (leagueOption === "create" && newLeague) {
       return encodedRedirect(
         "success",
         "/sign-up",
