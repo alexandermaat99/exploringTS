@@ -75,11 +75,12 @@ async function getUserStats(userId: string): Promise<UserStats> {
   };
 }
 
-export default async function DriverProfilePage({
-  params,
-}: {
+interface PageProps {
   params: { id: string };
-}) {
+  searchParams: { [key: string]: string | string[] | undefined };
+}
+
+export default async function DriverProfilePage({ params }: PageProps) {
   const supabase = await createClient();
 
   // Get current user to verify they're in the same league
