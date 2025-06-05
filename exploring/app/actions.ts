@@ -102,14 +102,15 @@ export const signUpAction = async (formData: FormData) => {
       leagueId = newLeague.id;
     }
 
-    // Create user profile with league association
-    const { error: profileError } = await supabase
-      .from("user_profiles")
-      .insert({
-        id: authData.user.id,
-        display_name: displayName,
-        league_id: leagueId,
-      });
+    // Update user profile with league association (the trigger already created the basic profile)
+    const { error: profileError } = await supabase.rpc(
+      "update_user_profile_after_signup",
+      {
+        user_id: authData.user.id,
+        display_name_param: displayName,
+        league_id_param: leagueId,
+      }
+    );
 
     if (profileError) {
       console.error("Profile creation error:", profileError);

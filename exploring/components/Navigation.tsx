@@ -36,33 +36,40 @@ const Navigation = memo(() => {
     []
   );
 
-  const fetchProfile = useCallback(async (userId: string) => {
-    // Check cache first
-    if (profileCache.has(userId)) {
-      setUserProfile(profileCache.get(userId)!);
-      return;
-    }
+  const fetchProfile = useCallback(
+    async (userId: string) => {
+      // Check cache first
+      if (profileCache.has(userId)) {
+        setUserProfile(profileCache.get(userId)!);
+        return;
+      }
 
-    try {
-      const response = await fetch(`/api/profile/${userId}`);
-      const result = await response.json();
+      try {
+        // Use Supabase client directly instead of API route to avoid session issues
+        const { data: profile, error } = await supabase
+          .from("user_profiles")
+          .select("display_name, league_id, leagues(name)")
+          .eq("id", userId)
+          .single();
 
-      if (!response.ok || result.error) {
-        console.error("Profile API error:", result.error);
+        if (error) {
+          console.error("Profile fetch error:", error);
+          const fallbackProfile = { display_name: null, leagues: null };
+          setUserProfile(fallbackProfile);
+          profileCache.set(userId, fallbackProfile);
+        } else {
+          setUserProfile(profile);
+          profileCache.set(userId, profile);
+        }
+      } catch (error) {
+        console.error("Profile fetch error:", error);
         const fallbackProfile = { display_name: null, leagues: null };
         setUserProfile(fallbackProfile);
         profileCache.set(userId, fallbackProfile);
-      } else {
-        setUserProfile(result.profile);
-        profileCache.set(userId, result.profile);
       }
-    } catch (error) {
-      console.error("Profile fetch error:", error);
-      const fallbackProfile = { display_name: null, leagues: null };
-      setUserProfile(fallbackProfile);
-      profileCache.set(userId, fallbackProfile);
-    }
-  }, []);
+    },
+    [supabase]
+  );
 
   useEffect(() => {
     let mounted = true;
