@@ -58,8 +58,16 @@ const Navigation = memo(() => {
           setUserProfile(fallbackProfile);
           profileCache.set(userId, fallbackProfile);
         } else {
-          setUserProfile(profile);
-          profileCache.set(userId, profile);
+          // Transform the profile data to match UserProfile interface
+          const transformedProfile: UserProfile = {
+            display_name: profile.display_name,
+            leagues:
+              Array.isArray(profile.leagues) && profile.leagues.length > 0
+                ? profile.leagues[0]
+                : null,
+          };
+          setUserProfile(transformedProfile);
+          profileCache.set(userId, transformedProfile);
         }
       } catch (error) {
         console.error("Profile fetch error:", error);
