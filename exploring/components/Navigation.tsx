@@ -48,7 +48,7 @@ const Navigation = memo(() => {
         // Use Supabase client directly instead of API route to avoid session issues
         const { data: profile, error } = await supabase
           .from("user_profiles")
-          .select("display_name, league_id, leagues(name)")
+          .select("display_name, league_id, leagues!league_id(name)")
           .eq("id", userId)
           .single();
 
@@ -58,14 +58,26 @@ const Navigation = memo(() => {
           setUserProfile(fallbackProfile);
           profileCache.set(userId, fallbackProfile);
         } else {
+          // Handle both possible data structures from Supabase
+          let leagueData: { name: string } | null = null;
+
+          if (profile.leagues) {
+            if (Array.isArray(profile.leagues)) {
+              // If it's an array, take the first element
+              leagueData =
+                profile.leagues.length > 0 ? profile.leagues[0] : null;
+            } else {
+              // If it's already an object, use it directly
+              leagueData = profile.leagues as { name: string };
+            }
+          }
+
           // Transform the profile data to match UserProfile interface
           const transformedProfile: UserProfile = {
             display_name: profile.display_name,
-            leagues:
-              Array.isArray(profile.leagues) && profile.leagues.length > 0
-                ? profile.leagues[0]
-                : null,
+            leagues: leagueData,
           };
+
           setUserProfile(transformedProfile);
           profileCache.set(userId, transformedProfile);
         }
